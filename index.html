@@ -53,8 +53,7 @@
         function select(number){
             ii = number;
             $("#number").html("Sentence " + ii);
-            $("#en").html("");
-            $("#zh").html("");
+            $("#showtext").html("");
         }
         function random() {
           return Math.floor(Math.random() * strs.length);
@@ -93,11 +92,10 @@
             });
 
             $("#show").click(function() {
-                $("#en").html(strs[ii].en);
-                $("#zh").html(strs[ii].zh);
+                $("#showtext").html(strs[ii]);
             });
             $("#a").click(function() {
-                speak(strs[ii].en);
+                speak(strs[ii]);
             });
             $("#d").click(function() {
                 synth.cancel();
@@ -105,42 +103,30 @@
 
             $.ajax({
                 type: "get",
-                url: "a.txt",
+                url: "b.txt",
                 dataType: "text",
                 async: true
             }).done(function (initText) {
                 strs = [];
                 let str = {};
-                let ss = initText.split(/[\n]/);
+                let ss = initText.split(/[\n]{2}/);
                 for(let i = 0; i< ss.length; i++ ){
                     let l = ss[i].trim();
                     if(l.length==0){
                         continue;
                     }
-                    if($.isEmptyObject(str)){
-                        str = {en:l}
-                    } else{
-                        str.zh = l;
-                        strs.push(str);
-                        str = {};
-                    }
+                    strs.push(l);
                 }
             });
             select(0);
         });
-
-
-
 
     </script>
 </head>
 <body>
 
 <div id="number"></div>
-<div id="showtext">
-    <div id="en"></div>
-    <div id="zh"></div>
-</div>
+<div id="showtext"></div>
 
 <div>
     <div>
