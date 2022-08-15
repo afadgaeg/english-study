@@ -61,6 +61,21 @@
         }
 
         $(document).ready(function(){
+            $("#next").click(function() {
+                let i = ii +1 ;
+                if(i>=strs.length){
+                    i=0;
+                }
+                select(i);
+            });
+
+            $("#previous").click(function() {
+                let i = ii -1 ;
+                if(i<0){
+                    i=strs.length-1;
+                }
+                select(i);
+            });
             $("#random").click(function() {
                 select(random());
             });
@@ -72,6 +87,15 @@
             });
             $("#a").click(function() {
                 speak(strs[ii].en);
+            });
+            $("#b").click(function() {
+                synth.pause();
+            });
+            $("#c").click(function() {
+                synth.resume();
+            });
+            $("#d").click(function() {
+                synth.cancel();
             });
 
             $.ajax({
@@ -115,12 +139,17 @@
 
 <div>
     <div>
-        <button id="show">Show</button>
+        <button id="next">Next</button>
+        <button id="previous">Previous</button>
         <button id="random">Random</button>
+        <button id="show">Show</button>
     </div>
 
     <div id="player">
         <button id="a">Play</button>
+        <button id="b">Pause</button>
+        <button id="c">Continue</button>
+        <button id="d">Stop</button>
     </div>
 </div>
 
