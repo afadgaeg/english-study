@@ -39,7 +39,6 @@
         // https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/cancel
         let synth = window.speechSynthesis;
         let voices = synth.getVoices();
-        alert(voices.length);
         let u = new SpeechSynthesisUtterance();
         u.lang = 'en-US';
         u.rate = 1;
