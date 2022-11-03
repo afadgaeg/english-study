@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://momentjs.com/downloads/moment-with-locales.min.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"
+            integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
+    <title>Title</title>
+    <style>
+        body{
+            width:500px;
+            margin: 100px auto 0px auto;
+        }
+        div{
+            margin-top:20px;
+        }
+        input{
+            width:200px;
+        }
+    </style>
+    <script>
+
+        function toFormatTime() {
+            let offset = $("#offset").val();
+            let format = $("#format").val();
+            let timestamp = $("#timestamp").val();
+            let timeOutput = moment(Number(timestamp)).utcOffset(offset).format(format);
+             $("#time").val(timeOutput);
+        }
+
+        function toTimestamp() {
+            let offset = $("#offset").val();
+            let format = $("#format").val();
+            let m = moment($("#time").val(), format).utcOffset(offset);
+            $("#timestamp").val(m.valueOf());
+        }
+
+        $(document).ready(function() {
+            for (let i = -12; i <= 12; i++) {
+                let u = "UTC" + (i>=0 ? "+"+i : i);
+                let option = i==8 ? '<option selected="selected" value="' + i + '">' + u + '</option>'
+                : '<option value="' + i + '">' + u + '</option>';
+                $("#offset").append(option);
+            }
+            $("#to-format-time").click(function() {
+                toFormatTime();
+            });
+            $("#to-timestamp").click(function() {
+                toTimestamp();
+            });
+            $("#timestamp").val(moment().valueOf());
+            toFormatTime();
+        });
+
+    </script>
+</head>
+<body>
+<div>
+    <select id="offset"></select>
+    <input id="format" value="yyyy-MM-DD HH:mm:ss.SSS"/>
+</div>
+
+<div>
+    <input id="timestamp" type="text"/>
+    <button id="to-timestamp">&lt;</button>
+    <button id="to-format-time">&gt;</button>
+    <input id="time" type="text"/>
+</div>
+
+</body>
+</html>
