@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
     <title>Timestamp</title>
     <style>
@@ -19,23 +18,73 @@
     </style>
     <script>
 
+        let localOffset = new Date().getTimezoneOffset() * 60 * 1000;
+
+        Date.prototype.format = function (format) {
+            let date = {
+                "yyyy": this.getFullYear(),
+                "MM": this.getMonth() + 1,
+                "dd": this.getDate(),
+                "HH": this.getHours(),
+                "mm": this.getMinutes(),
+                "ss": this.getSeconds(),
+                "S": this.getMilliseconds()
+            };
+            console.log(date);
+            for (let k in date) {
+                if (new RegExp("(" + k + ")").test(format)) {
+                    format = format.replace(RegExp.$1, padding(date[k], k=='S' ? 3 : RegExp.$1.length));
+                }
+            }
+            return format;
+        };
+
+        function parse(timeStr, format) {
+            let arr = ["yyyy", "MM", "dd", "HH", "mm", "ss", "S"];
+            let date = {};
+            for(let i in arr){
+                let k = arr[i];
+                let length = k == 'S' ? 3 : k.length;
+                let start = format.indexOf(k);
+                date[k] = timeStr.substr(start, length);
+            }
+            console.log(date);
+            let time = new Date();
+            time.setFullYear(date.yyyy);
+            time.setMonth(date.MM-1);
+            time.setDate(date.dd);
+            time.setHours(date.HH);
+            time.setMinutes(date.mm);
+            time.setSeconds(date.ss);
+            time.setMilliseconds(date.S);
+            return time;
+        }
+
+        function padding(num, length) {
+          return (Array(length).join("0") + num).slice(-length);
+        }
+
         function toFormatTime() {
-            let offset = $("#offset").val();
+            let zoneOffset = $("#offset").val();
             let format = $("#format").val();
-            let timestamp = $("#timestamp").val();
-            let timeOutput = moment(Number(timestamp)).utcOffset(offset).format(format);
-             $("#time").val(timeOutput);
+            let timestamp = Number($("#timestamp").val()) + zoneOffset * 60 * 60 * 1000 + localOffset;
+            let time = new Date(timestamp);
+            let timeFormat = time.format(format);
+            console.log("zoneOffset: " + zoneOffset + ", format: " + format + ", timeFormat: " + timeFormat);
+             $("#time").val(timeFormat);
         }
 
         function toTimestamp() {
-            let offset = $("#offset").val();
+            let zoneOffset = $("#offset").val();
             let format = $("#format").val();
-            let m = moment($("#time").val(), format).utcOffset(offset);
-            $("#timestamp").val(m.valueOf());
+            let timestamp = parse($("#time").val(), format).getTime() - (zoneOffset * 60 * 60 * 1000 + localOffset);
+            console.log("zoneOffset: " + zoneOffset + ", format: " + format + ", timestamp: " + timestamp);
+            $("#timestamp").val(timestamp);
         }
 
         $(document).ready(function() {
-            for (let i = -12; i <= 12; i++) {
+            console.log("localZoneOffset: " + (-new Date().getTimezoneOffset()/60));
+            for (let i = 12; i >= -12; i--) {
                 let u = "UTC" + (i>=0 ? "+"+i : i);
                 let option = i==8 ? '<option selected="selected" value="' + i + '">' + u + '</option>'
                 : '<option value="' + i + '">' + u + '</option>';
@@ -47,7 +96,7 @@
             $("#to-timestamp").click(function() {
                 toTimestamp();
             });
-            $("#timestamp").val(moment().valueOf());
+            $("#timestamp").val(new Date().getTime());
             toFormatTime();
         });
 
@@ -56,7 +105,7 @@
 <body>
 <div>
     <select id="offset"></select>
-    <input id="format" value="yyyy-MM-DD HH:mm:ss.SSS"/>
+    <input id="format" value="yyyy-MM-dd HH:mm:ss.S"/>
 </div>
 
 <div>
