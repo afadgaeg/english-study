@@ -72,7 +72,7 @@
                 async: true
             }).done(function (initText) {
                 let ss = new Array();
-                let ss_ = initText.split(/[\n]{2}/);
+                let ss_ = initText.split(/[\n]{1}/);
                 for( let s of ss_){
                     s = s.trim();
                     if(s.length==0){
