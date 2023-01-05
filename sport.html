@@ -4,7 +4,7 @@
     <meta charset="utf-8"/>
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"
             integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
-    <title>english listen</title>
+    <title>sport</title>
     <style type="">
         * {
             box-sizing: border-box;
@@ -44,10 +44,11 @@
         u.voice = voices[0];
         let ii = -1;
         let ps = new Array();
-        function speak(textToSpeak) {
+        function speak($p) {
             synth.cancel();
-            u.text = textToSpeak;
+            u.text = $p.text();
             synth.speak(u);
+            $(window).scrollTop($p.position().top);
         }
         u.onend = function(event){
             if(ii==-1){
@@ -57,7 +58,7 @@
             if(ii>=ps.length){
                 return;
             }
-            speak(ps[ii].text());
+            speak(ps[ii]);
         };
         $(document).ready(function(){
             $("#stop").click(function(){
@@ -87,7 +88,7 @@
                     $("#sport").append($s);
                     $s.click(function() {
                         ii = i;
-                        speak($(this).text());
+                        speak($(this));
                     });
                 }
             });
