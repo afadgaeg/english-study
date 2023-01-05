@@ -24,33 +24,46 @@
             margin-top:50px;
         }
 
+        div#bottom{
+            position: fixed;
+            bottom: 30px;
+            width: 100%;
+            max-width:900px;
+            margin:0 auto;
+            height: 130px;
+            line-height: 130px;
+        }
+
     </style>
     <script>
-        // https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/cancel
         let synth = window.speechSynthesis;
         let voices = synth.getVoices();
         let u = new SpeechSynthesisUtterance();
         u.lang = 'zh-CN';
         u.rate = 1;
         u.voice = voices[0];
-
+        let ii = -1;
+        let ps = new Array();
         function speak(textToSpeak) {
+            synth.cancel();
             u.text = textToSpeak;
             synth.speak(u);
         }
-
-        $(document).ready(function(){
-            for (let i = 0; i < voices.length; i++) {
-                let option = "<option value=" + i + ">" + voices[i].name + "</option>";
-                $("#voices").append(option);
+        u.onend = function(event){
+            if(ii==-1){
+                return;
             }
-            $("#voices").change(function(){
-                let i = $(this).val();
-                u.voice = voices[i];
+            ii++;
+            if(ii>=ps.length){
+                return;
+            }
+            speak(ps[ii].text());
+        };
+        $(document).ready(function(){
+            $("#stop").click(function(){
+                ii = -1;
+                synth.cancel();
             });
-
-
-                //synth.cancel();
 
             $.ajax({
                 type: "get",
@@ -58,35 +71,36 @@
                 dataType: "text",
                 async: true
             }).done(function (initText) {
-                strs = [];
-                let ss = initText.split(/[\n]{2}/);
-                for(let i = 0; i< ss.length; i++ ){
-                    let l = ss[i].trim();
-                    if(l.length==0){
+                let ss = new Array();
+                let ss_ = initText.split(/[\n]{2}/);
+                for( let s of ss_){
+                    s = s.trim();
+                    if(s.length==0){
                         continue;
                     }
-                    let $s = $("<div><p>"+l+"</p></div>");
-                    let $b = $("<button>Play</button>");
-                    $s.append($b);
+                    ss.push(s);
+                }
+
+                for(let i in ss){
+                    let $s = $("<p>"+ss[i]+"</p>");
+                    ps.push($s);
                     $("#sport").append($s);
-                    $b.click(function() {
-                        let txt = $(this).prev().text();
-                        speak(txt);
+                    $s.click(function() {
+                        ii = i;
+                        speak($(this).text());
                     });
                 }
             });
-
         });
 
     </script>
 </head>
 <body>
-<div>
-    <div>
-        <select id="voices"></select>
-    </div>
+<div id="main">
     <div id="sport">
-
+    </div>
+    <div id="bottom">
+        <button id="stop">Stop</button>
     </div>
 </div>
 
