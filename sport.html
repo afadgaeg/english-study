@@ -18,12 +18,6 @@
             padding: 0 10px;
         }
 
-        select, button{
-            width:100%;
-            height:130px;
-            margin-top:50px;
-        }
-
         div#bottom{
             position: fixed;
             bottom: 65px;
@@ -34,62 +28,137 @@
             line-height: 130px;
         }
 
+        div#bottom > input{
+            box-sizing: border-box;
+            display: inline-block;
+            width:55%;
+            height:100%;
+            margin:0;
+        }
+
+        div#bottom > button{
+            box-sizing: border-box;
+            display: inline-block;
+            width:20%;
+            height:100%;
+            margin:0;
+        }
+
+        div#float{
+            position: fixed;
+            bottom: 200px;
+            width:100%;
+            height:200px;
+            max-width:900px;
+            background-color: #CCC;
+            padding-top:35px;
+            text-align: center;
+        }
+
+        div#float > select{
+            display: inline-block;
+            width:50%;
+            height:130px;
+            margin:0;
+        }
+
     </style>
     <script>
-        let synth = window.speechSynthesis;
-        let voices = synth.getVoices();
-        let u = new SpeechSynthesisUtterance();
-        u.lang = 'zh-CN';
-        u.rate = 1;
-        u.voice = voices[0];
-        let ii = -1;
-        let ps = new Array();
-        function speak($p) {
-            synth.cancel();
-            u.text = $p.text();
-            synth.speak(u);
-            $(window).scrollTop($p.position().top);
-        }
-        u.onend = function(event){
-            if(ii==-1){
-                return;
-            }
-            ii++;
-            if(ii>=ps.length){
-                return;
-            }
-            speak(ps[ii]);
-        };
+
         $(document).ready(function(){
-            $("#stop").click(function(){
-                ii = -1;
-                synth.cancel();
+            $("#float").hide();
+            $("#load").click(function(){
+                $("#float").toggle();
             });
 
-            $.ajax({
-                type: "get",
-                url: "sport.txt",
-                dataType: "text",
-                async: true
-            }).done(function (initText) {
-                let ss = new Array();
-                let ss_ = initText.split(/[\n]{1}/);
-                for( let s of ss_){
-                    s = s.trim();
-                    if(s.length==0){
-                        continue;
-                    }
-                    ss.push(s);
-                }
+            let synth = window.speechSynthesis;
+            let voices = synth.getVoices();
+            let u = new SpeechSynthesisUtterance();
+            u.lang = 'zh-cn';
+            u.rate = 1;
+            u.voice = voices[0];
+            let ii = 0;
+            let play = false;
+            let ps = new Array();
 
-                for(let i in ss){
-                    let $s = $("<p>"+ss[i]+"</p>");
-                    ps.push($s);
-                    $("#sport").append($s);
-                    $s.click(function() {
-                        ii = i;
-                        speak($(this));
-                    });
+            function speak() {
+                synth.cancel();
+                play = true;
+                let $p = ps[ii];
+                u.text = $p.text();
+                synth.speak(u);
+                $(window).scrollTop($p.position().top);
+                $("#switch").html("Stop");
+            }
+
+            function stop(){
+                synth.cancel();
+                play = false;
+                $("#switch").html("Start");
+            }
+
+            function load(filePath){
+                if(play){
+                    stop();
+                }
+                $.ajax({
+                    type: "get",
+                    url: filePath,
+                    dataType: "text",
+                    async: true
+                }).done(function (initText) {
+                    let ss = new Array();
+                    let ss_ = initText.split(/[\n]{1}/);
+                    for( let s of ss_){
+                        s = s.trim();
+                        if(s.length==0){
+                            continue;
+                        }
+                        ss.push(s);
+                    }
+
+                    $("#sport").html("");
+                    ps = new Array();
+                    for(let i in ss){
+                        let $s = $("<p>"+ss[i]+"</p>");
+                        ps.push($s);
+                        $("#sport").append($s);
+                        $s.click(function() {
+                            if(play){
+                                return;
+                            }
+                            ii = i;
+                            $("#part").val(ii);
+                        });
+                    }
+                });
+            }
+
+            $("#select").change(function(){
+                load($(this).val());
+                $("#float").hide();
+            });
+            load($("#select").val());
+
+
+            u.onend = function(event) {
+                if(!play){
+                    return;
+                }
+                if(ii>=ps.length-1){
+                    stop();
+                } else {
+                    ii++;
+                    $("#part").val(ii);
+                    speak();
+                }
+            };
+
+            $("#switch").click(function(){
+                if(play){
+                    stop();
+                }else{
+                    speak();
                 }
             });
         });
@@ -101,7 +170,15 @@
     <div id="sport">
     </div>
     <div id="bottom">
-        <button id="stop">Stop</button>
+        <input id="part" type="text" value="0"/>
+        <button id="switch">Start</button>
+        <button id="load">Load</button>
+    </div>
+    <div id="float">
+        <select id="select">
+            <option value ="txt/test.txt">测试文本</option>
+            <option value ="txt/zsdjy.txt">自私的基因</option>
+        </select>
     </div>
 </div>
 
