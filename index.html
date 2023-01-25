@@ -22,10 +22,11 @@
             margin-top:30px;
             height: 80px;
             line-height:80px;
+            text-align: center;
         }
         #showtext{
             width:100%;
-            height:300px;
+            height:500px;
             background-color: lightblue;
             margin-bottom:15px;
         }
@@ -49,17 +50,28 @@
         let ii=0;
 
         function speak(textToSpeak) {
+            synth.cancel();
             u.text = textToSpeak;
             synth.speak(u);
         }
+        function stop(){
+            synth.cancel();
+        }
         function select(number){
             ii = number;
-            $("#number").html("Sentence " + ii);
+            $("#number").html(ii+" / "+ strs.length);
             $("#showtext").html("");
         }
         function random() {
           return Math.floor(Math.random() * strs.length);
         }
+        function selectRandom(){
+            select(random());
+        }
+        function play(){
+            speak(strs[ii]);
+        }
+
 
         $(document).ready(function(){
 
@@ -68,40 +80,21 @@
                 $("#voices").append(option);
             }
 
-            $("#voices").change(function(){
-                let i = $(this).val();
-                u.voice = voices[i];
-            });
-
             $("#random").click(function() {
-                select(random());
+                selectRandom();
             });
 
-            $("#next").click(function() {
-                let i = ii +1 ;
-                if(i>=strs.length){
-                    i=0;
-                }
-                select(i);
+            $("#stop").click(function() {
+                stop();
             });
 
-            $("#previous").click(function() {
-                let i = ii -1 ;
-                if(i<0){
-                    i=strs.length-1;
-                }
-                select(i);
+            $("#play").click(function() {
+                play();
             });
-
             $("#show").click(function() {
                 $("#showtext").html(strs[ii]);
             });
-            $("#a").click(function() {
-                speak(strs[ii]);
-            });
-            $("#d").click(function() {
-                synth.cancel();
-            });
+
 
             $.ajax({
                 type: "get",
@@ -119,33 +112,31 @@
                     }
                     strs.push(l);
                 }
+                selectRandom();
             });
-            select(0);
+
         });
 
     </script>
 </head>
 <body>
 
-<div id="number"></div>
+
 <div id="showtext"></div>
 
 <div>
     <div>
         <select id="voices"></select>
     </div>
-    <div>
-        <button id="next">Next</button>
-        <button id="previous">Previous</button>
+    <div id="player">
         <button id="random">Random</button>
+        <button id="stop">Stop</button>
+        <button id="play">Play</button>
         <button id="show">Show</button>
     </div>
-
-    <div id="player">
-        <button id="a">Play</button>
-        <button id="d">Stop</button>
-    </div>
 </div>
+
+<div id="number"></div>
 
 </body>
 </html>
