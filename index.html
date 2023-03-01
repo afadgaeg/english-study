@@ -59,7 +59,7 @@
         }
         function select(number){
             ii = number;
-            $("#number").html(ii+" / "+ strs.length);
+            $("#number").html((ii+1)+" / "+ strs.length);
             $("#showtext").html("");
         }
         function random() {
@@ -72,13 +72,43 @@
             speak(strs[ii]);
         }
 
+        function load(url){
+            $.ajax({
+                type: "get",
+                url: url,
+                dataType: "text",
+                async: true
+            }).done(function (initText) {
+                strs = [];
+                let str = {};
+                let ss = initText.split(/[\n]{2}/);
+                for(let i = 0; i< ss.length; i++ ){
+                    let l = ss[i].trim();
+                    if(l.length==0){
+                        continue;
+                    }
+                    strs.push(l);
+                }
+                selectRandom();
+            });
+        }
 
-        $(document).ready(function(){
 
+        $(document).ready(function() {
+            let $voices = $("#voices");
             for (let i = 0; i < voices.length; i++) {
-                let option = "<option value=" + i + ">" + voices[i].name + "</option>";
-                $("#voices").append(option);
+                let option;
+                if(i==0){
+                    option = "<option value=\"0\" selected=\"selected\">" + voices[0].name + "</option>";
+                } else {
+                    option = "<option value=\"" + i + "\">" + voices[i].name + "</option>";
+                }
+                $voices.append(option);
             }
+            $voices.change(function(){
+                u.voice = voices[$voices.val()];
+            });
+            u.voice = voices[0];
 
             $("#random").click(function() {
                 selectRandom();
@@ -95,25 +125,11 @@
                 $("#showtext").html(strs[ii]);
             });
 
-
-            $.ajax({
-                type: "get",
-                url: "b.txt",
-                dataType: "text",
-                async: true
-            }).done(function (initText) {
-                strs = [];
-                let str = {};
-                let ss = initText.split(/[\n]{2}/);
-                for(let i = 0; i< ss.length; i++ ){
-                    let l = ss[i].trim();
-                    if(l.length==0){
-                        continue;
-                    }
-                    strs.push(l);
-                }
-                selectRandom();
+            let $ts = $("#ts");
+            $ts.change(function(){
+                load($ts.val());
             });
+            load($ts.val());
 
         });
 
@@ -127,6 +143,12 @@
 <div>
     <div>
         <select id="voices"></select>
+    </div>
+    <div>
+        <select id="ts">
+            <option value="txt/english/bb.txt" selected="selected">Breaking Bad S01-S05</option>
+            <option value="txt/english/2bg.txt">2 Broke Girls S01-S06</option>
+        </select>
     </div>
     <div id="number"></div>
     <div id="player">
