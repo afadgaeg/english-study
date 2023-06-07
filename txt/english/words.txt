@@ -409,7 +409,6 @@ vengeance
 severe
 rack
 puzzle
-puerto
 courtesy
 wizard
 quiz
@@ -442,7 +441,6 @@ bin
 accent
 witter
 wandering
-que
 locate
 inevitable
 griffin
@@ -501,7 +499,6 @@ tuck
 snuck
 rear
 pressing
-
 magnificent
 glorious
 fiancee
