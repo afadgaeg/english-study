@@ -26,9 +26,10 @@
         }
         #showtext{
             width:100%;
-            height:500px;
+            height:260px;
             background-color: lightblue;
             margin-bottom:15px;
+            padding-top:20px;
         }
 
         select, button, #gotowp{
@@ -117,15 +118,15 @@
             $("#random").click(function() {
                 selectRandom();
             });
-            $("#next").click(function() {
-                selectNext();
-            });
-            $("#previous").click(function() {
-                selectPrevious();
-            });
-            $("#goto").click(function() {
-                goto();
-            });
+            // $("#next").click(function() {
+                // selectNext();
+            // });
+            //$("#previous").click(function() {
+                //selectPrevious();
+            //});
+            //$("#goto").click(function() {
+             //   goto();
+            //});
 
             $("#stop").click(function() {
                 stop();
@@ -139,7 +140,11 @@
             });
 
              $("#remove").click(function() {
-                let data = {value: strs[ii]};
+                let word = strs[ii];
+                if(!window.confirm("确定要删除单词[" + word + "]么？")){
+                    return;
+                }
+                let data = {value: word};
                 $.ajax({
                     type: "post",
                     contentType: "application/json;charset=utf-8",
@@ -150,7 +155,7 @@
                 }).done(function (json) {
                     if(json.result){
                         strs.splice(ii, 1);
-                        select(ii);
+                        selectRandom();
                     } else {
                         alert("failed!");
                     }
@@ -165,7 +170,7 @@
                 async: true
             }).done(function (json) {
                 strs = json;
-                select(0);
+                selectRandom();
             });
 
         });
@@ -181,13 +186,13 @@
     <div id="number"></div>
     <div id="player">
         <button id="remove">Remove</button>
-        <div id="gotowp">
-            <input id="item" type="text"/>
-            <button id="goto">Go</button>
-        </div>
+<!--        <div id="gotowp">-->
+<!--            <input id="item" type="text"/>-->
+<!--            <button id="goto">Go</button>-->
+<!--        </div>-->
         <button id="random">Random</button>
-        <button id="previous">Previous</button>
-        <button id="next">Next</button>
+<!--        <button id="previous">Previous</button>-->
+<!--        <button id="next">Next</button>-->
         <button id="stop">Stop</button>
         <button id="play">Play</button>
         <button id="show">Show</button>
