@@ -78,7 +78,8 @@
             } else if(ii>=strs.length){
                 ii = 0;
             }
-            $("#number").html((ii+1)+" / "+ strs.length);
+//            $("#number").html((ii+1)+" / "+ strs.length);
+            $("#number").html(strs.length);
             $("#showtext").html("");
         }
         function random() {
@@ -148,7 +149,7 @@
                 $.ajax({
                     type: "post",
                     contentType: "application/json;charset=utf-8",
-                    url: "http://192.168.43.199:8080/word/remove",
+                    url: "http://192.168.43.199:9000/a1/word/remove",
                     dataType: "json",
                     async: true,
                     data: JSON.stringify(data)
@@ -162,10 +163,22 @@
                 });
             });
 
+            // 禁用双击放大
+            var lastTouchEnd = 0;
+            document.documentElement.addEventListener('touchend', function (event) {
+                var now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, {
+                passive: false
+            });
+
             $.ajax({
                 type: "post",
                 contentType: "application/json;charset=utf-8",
-                url: "http://192.168.43.199:8080/word/list",
+                url: "http://192.168.43.199:9000/a1/word/list",
                 dataType: "json",
                 async: true
             }).done(function (json) {
