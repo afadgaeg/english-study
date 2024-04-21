@@ -48,6 +48,7 @@
         }
 
 
+
     </style>
     <script>
         // https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/cancel
@@ -58,12 +59,13 @@
         u.rate = 1;
         u.voice = voices[0];
 
-        let strs;
         let url;
         let authorization;
 
-        let ii=0;
-        let count;
+        let words;
+        let indexes;
+        let ii;
+
         let bloom = new BloomFilter(
           256 * 256, // number of bits to allocate.
           8        // number of hash functions.
@@ -103,29 +105,26 @@
             synth.cancel();
         }
         function play(){
-            speak(strs[ii]);
+            speak(words[indexes[ii]]);
         }
 
-        function random() {
-          return Math.floor(Math.random() * strs.length);
-        }
         function selectRandom(){
-            let i = random();
-            if(bloom.test(""+i)){
-                selectRandom();
-            } else {
-                ii = i;
-                $("#number").html(strs.length-count);
-                $("#showtext").html("");
-            }
+            let l = indexes.length;
+            ii = Math.floor(Math.random() * l);
+            $("#number").html(l);
+            $("#showtext").html("");
         }
 
         $(document).ready(function() {
+            $("button").each(function(index){
+                $(this).prop("disabled", true);
+            });
+
             let conf = airtableMap[getQueryString("user")];
             url = conf.airtableUrl;
             authorization = conf.authorization;
 
-            strs = conf.words.split(",");
+            words = conf.words.split(",");
             // 禁用双击放大
             let lastTouchEnd = 0;
             document.documentElement.addEventListener('touchend', function (event) {
@@ -153,49 +152,6 @@
             });
             u.voice = voices[0];
 
-            $("#random").click(function() {
-                selectRandom();
-            });
-
-            $("#stop").click(function() {
-                stop();
-            });
-
-            $("#play").click(function() {
-                play();
-            });
-            $("#show").click(function() {
-                $("#showtext").html(strs[ii]);
-            });
-
-            $("#remove").click(function() {
-                if(!window.confirm("Are you sure you want to delete the word [" + strs[ii] + "]?")){
-                    return;
-                }
-                bloom.add(""+ii);
-                count++;
-                let data = {
-                    fields: {
-                        value: bloom.buckets.join(","),
-                        count: count
-                    }
-                };
-                $.ajax({
-                    type: "PATCH",
-                    contentType: "application/json;charset=utf-8",
-                    url: url,
-                    dataType: "json",
-                    async: true,
-                    headers:{
-                        Authorization: authorization
-                    },
-                    data: JSON.stringify(data)
-                }).done(function (json) {
-                    selectRandom();
-                });
-            });
-
-
             $.ajax({
                 type: "get",
                 url: url,
@@ -208,8 +164,62 @@
                 if(r.fields.value){
                     bloom.buckets = new Int32Array(r.fields.value.split(",").map(Number));
                 }
-                count = r.fields.count;
+
+                indexes = new Array();
+                for(let i = 0; i<words.length ;i++){
+                    let removed = bloom.test(""+i);
+                    if(!removed){
+                        indexes.push(i);
+                    }
+                }
                 selectRandom();
+
+                $("#random").click(function() {
+                    selectRandom();
+                });
+
+                $("#stop").click(function() {
+                    stop();
+                });
+
+                $("#play").click(function() {
+                    play();
+                });
+                $("#show").click(function() {
+                    $("#showtext").html(words[indexes[ii]]);
+                });
+
+                $("#remove").click(function() {
+                    let index = indexes[ii];
+                    if(!window.confirm("Are you sure you want to delete the word [" + words[index] + "]?")){
+                        return;
+                    }
+                    indexes.splice(ii, 1);
+                    bloom.add(""+index);
+                    let data = {
+                        fields: {
+                            value: bloom.buckets.join(",")
+                        }
+                    };
+                    $.ajax({
+                        type: "PATCH",
+                        contentType: "application/json;charset=utf-8",
+                        url: url,
+                        dataType: "json",
+                        async: true,
+                        headers:{
+                            Authorization: authorization
+                        },
+                        data: JSON.stringify(data)
+                    }).done(function (json) {
+                        selectRandom();
+                    });
+                });
+
+
+                $("button").each(function(index){
+                    $(this).prop("disabled", false);
+                });
             });
         });
 
@@ -223,14 +233,13 @@
     </div>
     <div id="number"></div>
     <div id="player">
-        <button id="remove">Remove</button>
-        <button id="random">Random</button>
-        <button id="stop">Stop</button>
-        <button id="play">Play</button>
-        <button id="show">Show</button>
+        <button id="remove" disabled="true">Remove</button>
+        <button id="random" disabled="true">Random</button>
+        <button id="stop" disabled="true">Stop</button>
+        <button id="play" disabled="true">Play</button>
+        <button id="show" disabled="true">Show</button>
     </div>
 </div>
-
 
 
 </body>
