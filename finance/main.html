@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>App</title>
+    <style>
+        *{
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .item{
+            padding-left: 18px;
+        }
+        #data{
+            display: flex;
+        }
+        #data>.wrapper{
+            flex: 0 0 500px;
+            margin-right:10px;
+        }
+        #data>.wrapper>.report{
+            margin-bottom: 10px;
+        }
+        #data>.wrapper>.report>.title{
+            height: 24px;
+            padding: 4px;
+            background-color: #BCD4E6;
+            color: #555;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        #data>.wrapper>.report>.content .item{
+            border-left:1px solid #CCC;
+        }
+        #data>.wrapper>.report>.content .item>.cur{
+            height: 20px;
+            background-color: #F6F6F6;
+            border-bottom: 1px solid #BBB;
+            position : relative;
+        }
+        #data>.wrapper>.report>.content .item>.cur>.value{
+            position: absolute;
+            top:2px;
+            right:0;
+            z-index:99;
+        }
+        #data>.wrapper>.report>.content .item>.cur>.fold{
+            width:16px;
+            height: 16px;
+            position: absolute;
+            left:-17px;
+            top:2px;
+            background-color: #EEE;
+            z-index:99;
+            color: #AAA;
+            font-weight:bolder;
+            font-size: 16px;
+            text-align:center;
+        }
+        #data>.wrapper>.report>.content .item>.cur>.fold:hover{
+            cursor:pointer;
+        }
+        #data>.wrapper>.report>.content .item>.cur>.bar{
+            height: 4px;
+            position: absolute;
+            right:0;
+            z-index:98;
+            top:16px;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+            integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+            crossorigin="anonymous"></script>
+    <script>
+        function get(obj, prop){
+            if(!obj[prop]){
+                obj[prop] = {};
+            }
+            return obj[prop];
+        }
+
+        function format(s) {
+            let head = '';
+            if(s.startsWith('-')){
+                head = '-';
+                s = s.substring(1);
+            }
+            let i = s.indexOf(".");
+            let tail = '';
+            if(i!==-1){
+                tail = s.substring(i);
+                s = s.substring(0,i);
+            }
+            let ss = s.split("");
+            ss.reverse();
+            let ss_ = [];
+            let j = 0;
+            for(let i = 0; i<ss.length;i++){
+                if(j===3){
+                    ss_.push(',');
+                    j=0;
+                }
+                ss_.push(ss[i]);
+                j++;
+            }
+            ss_.reverse();
+            return head + ss_.join("") + tail;
+        }
+
+        $(document).ready(function() {
+
+            let itemData;
+            let $wrappers = [];
+            let $data = $("#data");
+            let entityTypes = ['C', 'A2P', 'P', 'M'];
+            let timeRanges = [];
+            let itemMaxValue = 0.0;
+            let itemMaxWidth = 500;
+            let $select1 = $('#render-by-entity');
+            let $select2 = $('#render-by-time');
+
+            function feature(){
+                $data.find(".wrapper>.report>.content .item>.subs").show();
+                $data.find(".wrapper>.report>.content .item>.cur>.bar").each(function(){
+                    let wd = itemMaxWidth * $(this).attr('rpt-item-bar') / itemMaxValue;
+                    let color = wd < 0 ? 'red' : 'green';
+                    $(this).css({
+                        width : Math.abs(wd)+ "px",
+                        "background-color": color
+                    });
+                });
+                $data.find(".wrapper>.report>.content .item").each(function(){
+                    let item = $(this).attr('rpt-item');
+                    $(this).find('.cur>.fold').text("—").off("click").click(function() {
+                        $data.find(".wrapper>.report>.content .item[rpt-item="+ item +"]>.subs").toggle();
+                        $data.find(".wrapper>.report>.content .item[rpt-item="+ item +"]>.cur>.fold").each(function(){
+                            let txt = $(this).text();
+                            $(this).text(txt === '+'? '—' : '+');
+                        });
+                    });
+                });
+            }
+
+            function tp(et, time, items){
+                let $content = $('<div>', {
+                    class:"content"
+                });
+                let title = et +':'+ time;
+                let $report = $('<div>',{
+                    "rpt-tt" : "tp",
+                    "rpt-et": et,
+                    "rpt-time" : time,
+                    class : "report time-point",
+                    id: title,
+                    html: [
+                        $('<div>', {
+                            class : "title",
+                            html:[title]
+                        }),
+                        $content
+                    ]
+                });
+                for(let i = 0;i< itemData.timePointItems.length;i++){
+                    fillItem(toItemMap(items), $content, itemData.timePointItems[i]);
+                }
+                return $report;
+            }
+
+            function tr(r){
+                let et = r.entityType;
+                let tr = r.timeRange;
+                let tr_ = tr.begin.time+'_'+tr.begin.version + '-' + tr.end.time + '_' + tr.end.version;
+                let title = et +':' + tr_;
+                if(!timeRanges.includes(tr_)){
+                    timeRanges.push(tr_);
+                }
+                let $content = $('<div>', {
+                    class: "content"
+                });
+                let $report = $('<div>', {
+                    "rpt-tt": "tr",
+                    "rpt-et": et,
+                    "rpt-tr": tr_,
+                    "rpt-time": tr.end.time + '_' + tr.end.version,
+                    class : "report time-range",
+                    id: title,
+                    html: [
+                        $('<div>', {
+                            class : "title",
+                            html: title
+                        }),
+                        $content
+                    ]
+                });
+                for(let i = 0;i< itemData.timeRangeItems.length;i++){
+                    fillItem(toItemMap(r.items), $content, itemData.timeRangeItems[i]);
+                }
+                return $report;
+            }
+
+            function wrapper(k, w) {
+                let ss = k.split(':');
+                let et = ss[0];
+                let time = ss[1];
+                let $wrapper = $('<div>',{
+                    "rpt-et" : et,
+                    "rpt-time" : time,
+                    class:"wrapper"
+                });
+                $wrapper.append(tp(et, time, w.tp ? w.tp.items : {}));
+                if(w.tr){
+                    $wrapper.append(tr(w.tr));
+                }
+                return $wrapper;
+            }
+
+            function renderByEntityType(et) {
+                $select2.children('option').prop('selected', false);
+                $select2.children('option:first').prop('selected', true);
+                let $wps = [];
+                for(let i = 0; i< $wrappers.length; i++){
+                    let $wrapper = $wrappers[i];
+                    if($wrapper.attr('rpt-et') === et){
+                        $wps.push($wrapper);
+                    }
+                }
+                $data.html($wps);
+                feature();
+            }
+
+            function renderByTime(timeRange) {
+                $select1.children('option').prop('selected', false);
+                $select1.children('option:first').prop('selected', true);
+                let times = timeRange.split("-");
+                let $wps = [];
+                for(let i = 0; i< $wrappers.length; i++){
+                    let $wrapper = $wrappers[i];
+                    let time = $wrapper.attr('rpt-time');
+                    if(times.includes(time)){
+                        $wps.push($wrapper);
+                    }
+                }
+                $data.html($wps);
+                feature();
+            }
+
+            $.ajax({
+                url: "./json/common/items.json",
+                method: "GET",
+                data: null,
+                dataType: "json",
+                success: function(response) {
+                    itemData = response;
+                    $('#query').removeAttr('disabled');
+                    console.log(itemData);
+                },
+                error: function(xhr, status, error) {
+                    console.log(status);
+                }
+            });
+
+            function toItemMap(items){
+                let mp = {};
+                for(let i = 0; i< items.length; i++){
+                    mp[items[i].itemType] = items[i].value;
+                }
+                return mp;
+            }
+
+            function refresh(data){
+                console.log(data);
+
+                let wrapperKeys = [];
+                let wrapperMap = {};
+                for(let i = 0; i< data.timePointReports.length;i++){
+                    let r = data.timePointReports[i];
+                    let k = r.entityType+':'+r.time.time + '_' + r.time.version;
+                    get(wrapperMap, k).tp = r;
+                    if(!wrapperKeys.includes(k)){
+                        wrapperKeys.push(k);
+                    }
+                }
+                for(let i = 0; i< data.timeRangeReports.length;i++){
+                    let r = data.timeRangeReports[i];
+                    let k = r.entityType+':'+r.timeRange.end.time + '_' + r.timeRange.end.version;
+                    get(wrapperMap, k).tr = r;
+                    if(!wrapperKeys.includes(k)){
+                        wrapperKeys.push(k);
+                    }
+                }
+                for(let i = 0;i<wrapperKeys.length; i++){
+                    let k = wrapperKeys[i];
+                    let w = wrapperMap[k];
+                    $wrappers.push(wrapper(k, w));
+                }
+
+                $select1.html('<option style="display: none"></option>');
+                $select2.html('<option style="display: none"></option>');
+                for(let i = 0; i< entityTypes.length; i++){
+                    $select1.append($('<option value="'+entityTypes[i]+'">'+entityTypes[i]+'</option>'));
+                }
+                for(let i = 0; i< timeRanges.length; i++){
+                    $select2.append($('<option value="'+timeRanges[i]+'">'+timeRanges[i]+'</option>'));
+                }
+                $select1.change(function(){
+                    renderByEntityType($(this).val());
+                });
+                $select2.change(function(){
+                    renderByTime($(this).val());
+                });
+
+                $select1.children('option[value=C]').prop('selected', true);
+                renderByEntityType("C");
+            }
+
+            function fillItem(mp, $parent, item){
+                let $wrapper = $('<div>', {
+                    "rpt-item" :item.key,
+                    class:"item"
+                } );
+                $parent.append($wrapper);
+                let v = mp[item.key];
+                let v_ = v ? Math.abs(v) : 0;
+                if(v_>itemMaxValue){
+                    itemMaxValue = v_;
+                }
+                let $cur = $('<div>', {
+                    class:"cur",
+                    html:[
+                        $('<div>', {
+                            class : "key",
+                            html: [item.key]
+                        }),
+                        $('<div>', {
+                            "rpt-item-bar": v,
+                            class: "bar"
+                        }),
+                        $('<div>', {
+                            class: "value",
+                            html:[v?format(v):'']
+                        })
+                    ]
+                });
+                $wrapper.append($cur);
+                if(item.subs){
+                    $cur.append($('<div>', {class:"fold"}));
+                    let $subs = $('<div>', {class:"subs"});
+                    $wrapper.append($subs);
+                    for(let i = 0; i< item.subs.length; i++){
+                        fillItem(mp, $subs, item.subs[i]);
+                    }
+                }
+            }
+
+            $("#query").click(function() {
+                let code = $("#code").val().trim();
+                if(code === ''){
+                    return;
+                }
+                $.ajax({
+                    url: "./json/"+ code+".json",
+                    method: "GET",
+                    data: null,
+                    dataType: "json",
+                    success: function(response) {
+                        refresh(response);
+                    },
+                    error: function(xhr, status, error) {
+                        console.log(status);
+                    }
+                });
+            });
+
+        });
+
+    </script>
+
+
+</head>
+<body>
+
+<div id="app">
+    <div id="form">
+        <div>
+            <input id="code"/><button id="query" type="button" disabled="true">查询</button>
+        </div>
+        <div>
+            <select id="render-by-entity"></select>
+            <select id="render-by-time"></select>
+        </div>
+    </div>
+    <div id="data">
+
+    </div>
+</div>
+</body>
+</html>
