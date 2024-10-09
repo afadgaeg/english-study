@@ -67,17 +67,19 @@
             z-index:98;
             top:16px;
         }
-    </style>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
-            integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
-            crossorigin="anonymous"></script>
-    <script>
-        function get(obj, prop){
-            if(!obj[prop]){
-                obj[prop] = {};
-            }
-            return obj[prop];
+        #data>.wrapper>.report>.content .item>.subs[show=true]{
+            display: block;
         }
+        #data>.wrapper>.report>.content .item>.subs[show=false]{
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <script type="module">
+        import saulUtils from "../js/saul_utils.js";
+        let ele = saulUtils.ele;
+        let css = saulUtils.css;
+        let getProp = saulUtils.getProp;
 
         function format(s) {
             let head = '';
@@ -107,63 +109,73 @@
             return head + ss_.join("") + tail;
         }
 
-        $(document).ready(function() {
 
+        document.addEventListener('DOMContentLoaded', e=>{
             let itemData;
-            let $wrappers = [];
-            let $data = $("#data");
+            let wrapperEles = [];
+            let dataEle = document.querySelector("#data");
             let entityTypes = ['C', 'A2P', 'P', 'M'];
             let timeRanges = [];
             let itemMaxValue = 0.0;
             let itemMaxWidth = 500;
-            let $select1 = $('#render-by-entity');
-            let $select2 = $('#render-by-time');
+            let entityTypeSelectEle = document.querySelector('#render-by-entity');
+            let timeSelectEle = document.querySelector('#render-by-time');
 
             function feature(){
-                $data.find(".wrapper>.report>.content .item>.subs").show();
-                $data.find(".wrapper>.report>.content .item>.cur>.bar").each(function(){
-                    let wd = itemMaxWidth * $(this).attr('rpt-item-bar') / itemMaxValue;
+                for(let itemEle of dataEle.querySelectorAll(":scope>.wrapper>.report>.content .item")){
+                    let subsEle = itemEle.querySelector(':scope>.subs');
+                    if(subsEle){
+                        subsEle.setAttribute('show', true);
+                    }
+                    let curEle = itemEle.querySelector(':scope>.cur');
+
+                    let barEle = curEle.querySelector(':scope>.bar');
+                    let wd = itemMaxWidth * barEle.getAttribute('rpt-item-bar') / itemMaxValue;
                     let color = wd < 0 ? 'red' : 'green';
-                    $(this).css({
+                    css(barEle, {
                         width : Math.abs(wd)+ "px",
                         "background-color": color
                     });
-                });
-                $data.find(".wrapper>.report>.content .item").each(function(){
-                    let item = $(this).attr('rpt-item');
-                    $(this).find('.cur>.fold').text("—").off("click").click(function() {
-                        $data.find(".wrapper>.report>.content .item[rpt-item="+ item +"]>.subs").toggle();
-                        $data.find(".wrapper>.report>.content .item[rpt-item="+ item +"]>.cur>.fold").each(function(){
-                            let txt = $(this).text();
-                            $(this).text(txt === '+'? '—' : '+');
-                        });
-                    });
-                });
+
+                    let item = itemEle.getAttribute('rpt-item');
+                    let foldEle = curEle.querySelector(':scope>.fold');
+                    if(foldEle){
+                        foldEle.innerHTML = '—';
+                        foldEle.removeEventListener("click", foldEle.clickEventListener);
+                        foldEle.clickEventListener = ()=>{
+                            for(let itemEle_ of dataEle.querySelectorAll(":scope>.wrapper>.report>.content .item[rpt-item="+ item +"]")){
+                                let subsEle_ = itemEle_.querySelector(':scope>.subs');
+                                subsEle_.setAttribute('show', subsEle_.getAttribute('show') === 'true' ? false: true);
+                                let foldEle = itemEle_.querySelector(':scope>.cur>.fold');
+                                foldEle.innerHTML = foldEle.innerHTML === '+'? '—' : '+';
+                            }
+                        };
+                        foldEle.addEventListener('click', foldEle.clickEventListener);
+                    }
+                }
             }
 
             function tp(et, time, items){
-                let $content = $('<div>', {
+                let contentEle = ele('div', {
                     class:"content"
                 });
                 let title = et +':'+ time;
-                let $report = $('<div>',{
+                let reportEle = ele('div',{
                     "rpt-tt" : "tp",
                     "rpt-et": et,
                     "rpt-time" : time,
                     class : "report time-point",
-                    id: title,
-                    html: [
-                        $('<div>', {
-                            class : "title",
-                            html:[title]
-                        }),
-                        $content
-                    ]
-                });
+                    id: title
+                }, [
+                    ele('div', {
+                        class : "title"
+                    }, [document.createTextNode(title)]),
+                    contentEle
+                ]);
                 for(let i = 0;i< itemData.timePointItems.length;i++){
-                    fillItem(toItemMap(items), $content, itemData.timePointItems[i]);
+                    fillItem(toItemMap(items), contentEle, itemData.timePointItems[i]);
                 }
-                return $report;
+                return reportEle;
             }
 
             function tr(r){
@@ -174,90 +186,184 @@
                 if(!timeRanges.includes(tr_)){
                     timeRanges.push(tr_);
                 }
-                let $content = $('<div>', {
+                let contentEle = ele('div', {
                     class: "content"
                 });
-                let $report = $('<div>', {
+                let reportEle = ele('div', {
                     "rpt-tt": "tr",
                     "rpt-et": et,
                     "rpt-tr": tr_,
                     "rpt-time": tr.end.time + '_' + tr.end.version,
                     class : "report time-range",
-                    id: title,
-                    html: [
-                        $('<div>', {
-                            class : "title",
-                            html: title
-                        }),
-                        $content
-                    ]
-                });
+                    id: title
+                }, [
+                    ele('div', {
+                        class : "title",
+                        html: title
+                    }),
+                    contentEle
+                ]);
+                let itemMap = toItemMap(r.items);
                 for(let i = 0;i< itemData.timeRangeItems.length;i++){
-                    fillItem(toItemMap(r.items), $content, itemData.timeRangeItems[i]);
+                    fillItem(itemMap, contentEle, itemData.timeRangeItems[i]);
                 }
-                return $report;
+
+                if(et === 'C'){
+                    let chartEle = ele('div', {
+                        class: 'chart'
+                    });
+                    css(chartEle, {
+                        width: "500px",
+                        height:"500px"
+                    });
+                    contentEle.appendChild(chartEle);
+                    let wacc = itemMap['平均借贷成本'];
+                    let ce = itemMap['平均占用资本'];
+                    let ic = itemMap['平均投入资本'];
+                    let lineChartData = [{
+                        name:'税后平均占用资本回报率',
+                        denominator: ce,
+                        color: '#FFCC99'
+                    }, {
+                        name:'税前平均占用资本回报率',
+                        denominator: ce,
+                        color: '#CD950C'
+                    }, {
+                        name:'扣非税后平均占用资本回报率',
+                        denominator: ce,
+                        color: '#9ACD32'
+                    }, {
+                        name:'扣非税前平均占用资本回报率',
+                        denominator: ce,
+                        color: '#006400'
+                    }, {
+                        name:'税后平均投入资本回报率',
+                        denominator: ic,
+                        color: '#BA55D3'
+                    }, {
+                        name:'税前平均投入资本回报率',
+                        denominator: ic,
+                        color: '#8A2BE2'
+                    }, ];
+                    let series = [];
+                    let yMax = 0;
+                    let xMax = 3;
+                    let xInterval = (xMax-1)/10;
+                    for(let it of lineChartData){
+                        let data = [];
+                        let den = it.denominator;
+                        let y = itemMap[it.name];
+                        if(y*100>yMax){
+                            yMax = Math.ceil(y*100);
+                        }
+                        for(let i = 1; i<= xMax+0.000001; i+=xInterval){
+                            data.push([i, (den*y - wacc*(den*(1-1/i)))/den*100]);
+                        }
+                        series.push({
+                            name: it.name,
+                            data: data,
+                            type: 'line'
+                        });
+                    }
+
+                    let option = {
+                        //                        title: {
+                        //                            text: '杠杆/回报率曲线',
+                        //                            x: 'center'
+                        //                        },
+                        legend: {
+                            orient: 'horizontal',
+                            x: 'left',
+                            y: 'top',
+                            data: lineChartData.map(i => i.name)
+                        },
+                        grid: {
+                            top: '20%',
+                            left: '3%',
+                            right: '3%',
+                            bottom: '5%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            name: '杠杆倍数(占用资本/净资产)',
+                            type: 'value',
+                            min:1,
+                            max:xMax,
+                            interval:xInterval
+                        },
+                        yAxis: {
+                            name: '回报率%',
+                            type: 'value',
+                            min:0,
+                            max:yMax,
+                            interval:yMax/10
+                        },
+                        series: series,
+                        color: lineChartData.map(i => i.color)
+                    };
+                    let lineChart = echarts.init(chartEle);
+                    lineChart.setOption(option);
+                }
+                return reportEle;
             }
 
             function wrapper(k, w) {
                 let ss = k.split(':');
                 let et = ss[0];
                 let time = ss[1];
-                let $wrapper = $('<div>',{
+                let wrapperEle = ele('div',{
                     "rpt-et" : et,
                     "rpt-time" : time,
                     class:"wrapper"
                 });
-                $wrapper.append(tp(et, time, w.tp ? w.tp.items : {}));
+                wrapperEle.appendChild(tp(et, time, w.tp ? w.tp.items : {}));
                 if(w.tr){
-                    $wrapper.append(tr(w.tr));
+                    wrapperEle.appendChild(tr(w.tr));
                 }
-                return $wrapper;
+                return wrapperEle;
             }
 
             function renderByEntityType(et) {
-                $select2.children('option').prop('selected', false);
-                $select2.children('option:first').prop('selected', true);
-                let $wps = [];
-                for(let i = 0; i< $wrappers.length; i++){
-                    let $wrapper = $wrappers[i];
-                    if($wrapper.attr('rpt-et') === et){
-                        $wps.push($wrapper);
+                for(let optionEle of timeSelectEle.querySelectorAll(':scope>option')){
+                    optionEle.selected = false;
+                }
+                timeSelectEle.querySelector(':scope>option').selected = true;
+                dataEle.innerHTML = '';
+                for(let wrapperEle of wrapperEles){
+                    if(wrapperEle.getAttribute('rpt-et') === et){
+                        dataEle.appendChild(wrapperEle);
                     }
                 }
-                $data.html($wps);
                 feature();
             }
 
             function renderByTime(timeRange) {
-                $select1.children('option').prop('selected', false);
-                $select1.children('option:first').prop('selected', true);
+                for(let optionEle of entityTypeSelectEle.querySelectorAll(':scope>option')){
+                    optionEle.selected = false;
+                }
+                entityTypeSelectEle.querySelector(':scope>option').selected = true;
                 let times = timeRange.split("-");
-                let $wps = [];
-                for(let i = 0; i< $wrappers.length; i++){
-                    let $wrapper = $wrappers[i];
-                    let time = $wrapper.attr('rpt-time');
+                dataEle.innerHTML = '';
+                for(let wrapperEle of wrapperEles){
+                    let time = wrapperEle.getAttribute('rpt-time');
                     if(times.includes(time)){
-                        $wps.push($wrapper);
+                        dataEle.appendChild(wrapperEle);
                     }
                 }
-                $data.html($wps);
                 feature();
             }
 
-            $.ajax({
-                url: "./json/common/items.json",
-                method: "GET",
-                data: null,
-                dataType: "json",
-                success: function(response) {
-                    itemData = response;
-                    $('#query').removeAttr('disabled');
-                    console.log(itemData);
-                },
-                error: function(xhr, status, error) {
-                    console.log(status);
+            fetch('./json/common/items.json').then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return Promise.reject('something went wrong!');
                 }
-            });
+            }).then(data => {
+                itemData = data;
+                document.querySelector('#query').removeAttribute('disabled');
+                console.log(itemData);
+            }).catch(error => console.log('error is', error));
 
             function toItemMap(items){
                 let mp = {};
@@ -270,12 +376,13 @@
             function refresh(data){
                 console.log(data);
 
+                wrapperEles = [];
                 let wrapperKeys = [];
                 let wrapperMap = {};
                 for(let i = 0; i< data.timePointReports.length;i++){
                     let r = data.timePointReports[i];
                     let k = r.entityType+':'+r.time.time + '_' + r.time.version;
-                    get(wrapperMap, k).tp = r;
+                    getProp(wrapperMap, [k]).tp = r;
                     if(!wrapperKeys.includes(k)){
                         wrapperKeys.push(k);
                     }
@@ -283,7 +390,7 @@
                 for(let i = 0; i< data.timeRangeReports.length;i++){
                     let r = data.timeRangeReports[i];
                     let k = r.entityType+':'+r.timeRange.end.time + '_' + r.timeRange.end.version;
-                    get(wrapperMap, k).tr = r;
+                    getProp(wrapperMap, [k]).tr = r;
                     if(!wrapperKeys.includes(k)){
                         wrapperKeys.push(k);
                     }
@@ -291,86 +398,87 @@
                 for(let i = 0;i<wrapperKeys.length; i++){
                     let k = wrapperKeys[i];
                     let w = wrapperMap[k];
-                    $wrappers.push(wrapper(k, w));
+                    wrapperEles.push(wrapper(k, w));
                 }
 
-                $select1.html('<option style="display: none"></option>');
-                $select2.html('<option style="display: none"></option>');
+                entityTypeSelectEle.appendChild(ele('option', {
+                    style : "display: none"
+                }));
+                timeSelectEle.appendChild(ele('option', {
+                    style : "display: none"
+                }));
                 for(let i = 0; i< entityTypes.length; i++){
-                    $select1.append($('<option value="'+entityTypes[i]+'">'+entityTypes[i]+'</option>'));
+                    entityTypeSelectEle.appendChild(ele('option', {
+                        value: entityTypes[i]
+                    }, [document.createTextNode(entityTypes[i])]));
                 }
                 for(let i = 0; i< timeRanges.length; i++){
-                    $select2.append($('<option value="'+timeRanges[i]+'">'+timeRanges[i]+'</option>'));
+                    timeSelectEle.appendChild(ele('option', {
+                        value : timeRanges[i]
+                    }, [document.createTextNode(timeRanges[i])]));
                 }
-                $select1.change(function(){
-                    renderByEntityType($(this).val());
+                entityTypeSelectEle.addEventListener('change', function(){
+                    renderByEntityType(entityTypeSelectEle.value);
                 });
-                $select2.change(function(){
-                    renderByTime($(this).val());
+                timeSelectEle.addEventListener('change',function(){
+                    renderByTime(timeSelectEle.value);
                 });
 
-                $select1.children('option[value=C]').prop('selected', true);
+                entityTypeSelectEle.querySelector(':scope>option[value=C]').selected = true;
                 renderByEntityType("C");
             }
 
-            function fillItem(mp, $parent, item){
-                let $wrapper = $('<div>', {
+            function fillItem(mp, parentEle, item){
+                let wrapperEle = ele('div', {
                     "rpt-item" :item.key,
                     class:"item"
-                } );
-                $parent.append($wrapper);
+                });
+                parentEle.appendChild(wrapperEle);
                 let v = mp[item.key];
                 let v_ = v ? Math.abs(v) : 0;
                 if(v_>itemMaxValue){
                     itemMaxValue = v_;
                 }
-                let $cur = $('<div>', {
-                    class:"cur",
-                    html:[
-                        $('<div>', {
-                            class : "key",
-                            html: [item.key]
-                        }),
-                        $('<div>', {
-                            "rpt-item-bar": v,
-                            class: "bar"
-                        }),
-                        $('<div>', {
-                            class: "value",
-                            html:[v?format(v):'']
-                        })
-                    ]
-                });
-                $wrapper.append($cur);
+                let curEle = ele('div', {
+                    class:"cur"
+                }, [
+                    ele('div', {
+                        class : "key"
+                    }, [document.createTextNode(item.key)]),
+                    ele('div', {
+                        "rpt-item-bar": v,
+                        class: "bar"
+                    }),
+                    ele('div', {
+                        class: "value"
+                    }, [document.createTextNode(v?format(v):'')])
+                ]);
+                wrapperEle.appendChild(curEle);
                 if(item.subs){
-                    $cur.append($('<div>', {class:"fold"}));
-                    let $subs = $('<div>', {class:"subs"});
-                    $wrapper.append($subs);
+                    curEle.appendChild(ele('div', {class:"fold"}));
+                    let subsEle = ele('div', {class:"subs"});
+                    wrapperEle.appendChild(subsEle);
                     for(let i = 0; i< item.subs.length; i++){
-                        fillItem(mp, $subs, item.subs[i]);
+                        fillItem(mp, subsEle, item.subs[i]);
                     }
                 }
             }
 
-            $("#query").click(function() {
-                let code = $("#code").val().trim();
+            document.querySelector("#query").addEventListener('click', function() {
+                let code = document.querySelector("#code").value.trim();
                 if(code === ''){
                     return;
                 }
-                $.ajax({
-                    url: "./json/"+ code+".json",
-                    method: "GET",
-                    data: null,
-                    dataType: "json",
-                    success: function(response) {
-                        refresh(response);
-                    },
-                    error: function(xhr, status, error) {
-                        console.log(status);
+                fetch("./json/"+ code+".json").then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        return Promise.reject('something went wrong!');
                     }
-                });
+                }).then(response => {
+                    refresh(response);
+                }).catch(error => console.log('error is', error));
             });
-
         });
 
     </script>

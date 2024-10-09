@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
     <title>Timestamp</title>
     <style>
         body{
@@ -16,7 +15,9 @@
             width:200px;
         }
     </style>
-    <script>
+    <script type="module">
+        import saulUtils from "./js/saul_utils.js";
+        let ele = saulUtils.ele;
 
         let localOffset = new Date().getTimezoneOffset() * 60 * 1000;
 
@@ -65,38 +66,43 @@
         }
 
         function toFormatTime() {
-            let zoneOffset = $("#offset").val();
-            let format = $("#format").val();
-            let timestamp = Number($("#timestamp").val()) + zoneOffset * 60 * 60 * 1000 + localOffset;
+            let zoneOffset = document.querySelector("#offset").value;
+            let format = document.querySelector("#format").value;
+            let timestamp = Number(document.querySelector("#timestamp").value) + zoneOffset * 60 * 60 * 1000 + localOffset;
             let time = new Date(timestamp);
             let timeFormat = time.format(format);
             console.log("zoneOffset: " + zoneOffset + ", format: " + format + ", timeFormat: " + timeFormat);
-             $("#time").val(timeFormat);
+            document.querySelector("#time").value = timeFormat;
         }
 
         function toTimestamp() {
-            let zoneOffset = $("#offset").val();
-            let format = $("#format").val();
-            let timestamp = parse($("#time").val(), format).getTime() - (zoneOffset * 60 * 60 * 1000 + localOffset);
+            let zoneOffset = document.querySelector("#offset").value;
+            let format = document.querySelector("#format").value;
+            let timestamp = parse(document.querySelector("#time").value, format).getTime() - (zoneOffset * 60 * 60 * 1000 + localOffset);
             console.log("zoneOffset: " + zoneOffset + ", format: " + format + ", timestamp: " + timestamp);
-            $("#timestamp").val(timestamp);
+            document.querySelector("#timestamp").value = timestamp;
         }
 
-        $(document).ready(function() {
+        document.addEventListener('DOMContentLoaded', (e)=> {
             console.log("localZoneOffset: " + (-new Date().getTimezoneOffset()/60));
             for (let i = 12; i >= -12; i--) {
                 let u = "UTC" + (i>=0 ? "+"+i : i);
-                let option = i==8 ? '<option selected="selected" value="' + i + '">' + u + '</option>'
-                : '<option value="' + i + '">' + u + '</option>';
-                $("#offset").append(option);
+                let attrObj = {
+                    value: i
+                };
+                if(i===8){
+                    attrObj.selected = true;
+                }
+                let optionEle = ele('option', attrObj, [document.createTextNode(u)])
+                document.querySelector("#offset").appendChild(optionEle);
             }
-            $("#to-format-time").click(function() {
+            document.querySelector("#to-format-time").addEventListener('click', function() {
                 toFormatTime();
             });
-            $("#to-timestamp").click(function() {
+            document.querySelector("#to-timestamp").addEventListener('click',function() {
                 toTimestamp();
             });
-            $("#timestamp").val(new Date().getTime());
+            document.querySelector("#timestamp").value = new Date().getTime();
             toFormatTime();
         });
 

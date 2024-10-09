@@ -2,10 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8"/>
-    <script src="https://code.jquery.com/jquery-2.2.4.min.js"
-            integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
     <title>english listen</title>
-    <style type="text/css">
+    <style>
         * {
             box-sizing: border-box;
             font-size:40px;
@@ -38,7 +36,10 @@
         }
 
     </style>
-    <script>
+    <script type="module">
+        import saulUtils from "./js/saul_utils.js";
+        let ele = saulUtils.ele;
+
         // https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis/cancel
         let synth = window.speechSynthesis;
         let voices = synth.getVoices();
@@ -59,8 +60,8 @@
         }
         function select(number){
             ii = number;
-            $("#number").html((ii+1)+" / "+ strs.length);
-            $("#showtext").html("");
+            document.querySelector("#number").innerHTML = (ii+1)+" / "+ strs.length;
+            document.querySelector("#showtext").innerHTML = "";
         }
         function random() {
           return Math.floor(Math.random() * strs.length);
@@ -73,12 +74,13 @@
         }
 
         function load(url){
-            $.ajax({
-                type: "get",
-                url: url,
-                dataType: "text",
-                async: true
-            }).done(function (initText) {
+            fetch(url).then(response => {
+                if (response.ok) {
+                    return response.text();
+                } else {
+                    return Promise.reject('something went wrong!');
+                }
+            }).then(initText => {
                 strs = [];
                 let str = {};
                 let ss = initText.split(/[\n]{2}/);
@@ -90,47 +92,46 @@
                     strs.push(l);
                 }
                 selectRandom();
-            });
+            }).catch(error => console.log('error is', error));
         }
 
-
-        $(document).ready(function() {
-            let $voices = $("#voices");
+        document.addEventListener('DOMContentLoaded', e=>{
+            let voicesEle = document.querySelector("#voices");
             for (let i = 0; i < voices.length; i++) {
-                let option;
-                if(i==0){
-                    option = "<option value=\"0\" selected=\"selected\">" + voices[0].name + "</option>";
-                } else {
-                    option = "<option value=\"" + i + "\">" + voices[i].name + "</option>";
+                let attrObj = {
+                    value: i,
+                };
+                if(i===0){
+                    attrObj.selected = true;
                 }
-                $voices.append(option);
+                let optionEle = ele('option', attrObj, [document.createTextNode(voices[i].name)]);
+                voicesEle.append(optionEle);
             }
-            $voices.change(function(){
-                u.voice = voices[$voices.val()];
+            voicesEle.addEventListener('change', function(){
+                u.voice = voices[voicesEle.value];
             });
             u.voice = voices[0];
 
-            $("#random").click(function() {
+            document.querySelector("#random").addEventListener('click', function() {
                 selectRandom();
             });
 
-            $("#stop").click(function() {
+            document.querySelector("#stop").addEventListener('click',function() {
                 stop();
             });
 
-            $("#play").click(function() {
+            document.querySelector("#play").addEventListener('click',function() {
                 play();
             });
-            $("#show").click(function() {
-                $("#showtext").html(strs[ii]);
+            document.querySelector("#show").addEventListener('click',function() {
+                document.querySelector("#showtext").innerHTML = strs[ii];
             });
 
-            let $ts = $("#ts");
-            $ts.change(function(){
-                load($ts.val());
+            let tsEle = document.querySelector("#ts");
+            tsEle.addEventListener('change',function(){
+                load(tsEle.value);
             });
-            load($ts.val());
-
+            load(tsEle.value);
         });
 
     </script>
