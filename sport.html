@@ -2,10 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8"/>
-    <script src="https://code.jquery.com/jquery-2.2.4.min.js"
-            integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
     <title>sport</title>
-    <style type="">
+    <style>
         * {
             box-sizing: border-box;
             font-size:40px;
@@ -62,13 +60,31 @@
             margin:0;
         }
 
+        div#float[show=true]{
+            display: block;
+        }
+
+        div#float[show=false]{
+            display: none;
+        }
+
     </style>
     <script>
+        import saulUtils from "./js/saul_utils.js";
+        let ele = saulUtils.ele;
 
-        $(document).ready(function(){
-            $("#float").hide();
-            $("#load").click(function(){
-                $("#float").toggle();
+        const switchEle = document.getElementById('switch');
+        const sportEle = document.getElementById('sport');
+        const partEle = document.getElementById('part');
+        const selectEle = document.getElementById('select');
+        const floatEle = document.getElementById("float");
+        const loadEle = document.getElementById("load");
+
+        document.addEventListenner('DOMContentLoaded', (e)=>{
+
+            floatEle.setAttribute('show', false);
+            loadEle.addEventListenner('click', function(){
+                floatEle.setAttribute('show', floatEle.getAttribute('show') === 'true' ? false : true);
             });
 
             let synth = window.speechSynthesis;
@@ -79,34 +95,36 @@
             u.voice = voices[0];
             let ii = 0;
             let play = false;
-            let ps = new Array();
+            let pEles = new Array();
+
 
             function speak() {
                 synth.cancel();
                 play = true;
-                let $p = ps[ii];
-                u.text = $p.text();
+                let pEle = pEles[ii];
+                u.text = pEle.text();
                 synth.speak(u);
-                $(window).scrollTop($p.position().top);
-                $("#switch").html("Stop");
+                window.scrollTop = pEle.offsetParent.offsetTop + pEle.offsetTop;
+                switchEle.innerHTML = "Stop";
             }
 
             function stop(){
                 synth.cancel();
                 play = false;
-                $("#switch").html("Start");
+                switchEle.innerHTML = "Start";
             }
 
             function load(filePath){
                 if(play){
                     stop();
                 }
-                $.ajax({
-                    type: "get",
-                    url: filePath,
-                    dataType: "text",
-                    async: true
-                }).done(function (initText) {
+                fetch(filePath).then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        return Promise.reject('something went wrong!');
+                    }
+                }).then(initText => {
                     let ss = new Array();
                     let ss_ = initText.split(/[\n]{1}/);
                     for( let s of ss_){
@@ -117,44 +135,43 @@
                         ss.push(s);
                     }
 
-                    $("#sport").html("");
-                    ps = new Array();
+                    sportEle.innerHTML = "";
+                    pEles = new Array();
                     for(let i in ss){
-                        let $s = $("<p>"+ss[i]+"</p>");
-                        ps.push($s);
-                        $("#sport").append($s);
-                        $s.click(function() {
+                        let pEle = ele("p",null, [document.createTextNode(ss[i])]);
+                        pEles.push(pEle);
+                        sportEle.appendChild(pEle);
+                        pEle.addEventListener('click', function() {
                             if(play){
                                 return;
                             }
                             ii = i;
-                            $("#part").val(ii);
+                            partEle.value = ii;
                         });
                     }
-                });
+                }).catch(error => console.log('error is', error));
             }
 
-            $("#select").change(function(){
-                load($(this).val());
-                $("#float").hide();
+            selectEle.addEventListener('change', function(){
+                load(selectEle.value);
+                floatEle.setAttribute('show', false);
             });
-            load($("#select").val());
-
+            load(selectEle.value);
 
             u.onend = function(event) {
                 if(!play){
                     return;
                 }
-                if(ii>=ps.length-1){
+                if(ii>=pEles.length-1){
                     stop();
                 } else {
                     ii++;
-                    $("#part").val(ii);
+                    partEle.value = ii;
                     speak();
                 }
             };
 
-            $("#switch").click(function(){
+            switchEle.addEventListener('click', function(){
                 if(play){
                     stop();
                 }else{

@@ -40,3 +40,7 @@ target/
 
 # json
 *.json
+
+*.mp4
+*.webm
+*.srt

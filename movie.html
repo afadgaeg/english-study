@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Study english with movie</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style>
+        #video-wrapper{
+            width:100%;
+            position:relative;
+        }
+        #video{
+            width:100%;
+        }
+        #subtitle-wrapper{
+            width:100%;
+            text-align:center;
+            position:absolute;
+            bottom: 10px;
+        }
+        #subtitle{
+            font-size:20px;
+            color: white;
+            background-color:black;
+        }
+        #progress-range{
+            width:100%;
+        }
+    </style>
+    <script type="module">
+        import saulUtils from "./js/saul_utils.js";
+        let ele = saulUtils.ele;
+
+        function convertTimeToSeconds(time) {
+            const timeParts = time.split(':');
+            const hours = parseInt(timeParts[0]);
+            const minutes = parseInt(timeParts[1]);
+            const seconds = parseFloat(timeParts[2].replace(',', '.'));
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+
+        function convertSecondsToTime(seconds) {
+            seconds = Math.trunc(seconds);
+            let hour = Math.floor(seconds / 3600) >= 10 ? Math.floor(seconds / 3600) : '0' + Math.floor(seconds / 3600);
+            seconds -= 3600 * hour;
+            let min = Math.floor(seconds / 60) >= 10 ? Math.floor(seconds / 60) : '0' + Math.floor(seconds / 60);
+            seconds -= 60 * min;
+            let sec = seconds >= 10 ? seconds : '0' + seconds;
+            return hour + ':' + min + ':' + sec;
+        }
+
+        document.addEventListener('DOMContentLoaded', e=>{
+            const videoEle = document.getElementById("video");
+            const videoSourceEle = videoEle.querySelector("source");
+            const playEle = document.getElementById("play-pause");
+            const progressCurrentEle = document.getElementById("current");
+            const progressDurationEle = document.getElementById("duration");
+            const progressRangeEle = document.getElementById("progress-range");
+            const fullscreenEle = document.getElementById("fullscreen");
+            const volumeRangeEle = document.getElementById("volume-range");
+            const volumeMuteEle = document.getElementById("volume-mute");
+            const subtitleEle = document.getElementById("subtitle");
+            const preEle = document.getElementById("pre");
+            const preCcEle = document.getElementById("pre-cc");
+            const nextCcEle = document.getElementById("next-cc");
+            const curEle = document.getElementById("cur");
+            const curCcEle = document.getElementById("cur-cc");
+            const nextEle = document.getElementById("next");
+            const videosEle = document.getElementById("videos");
+
+            let volume = 1;
+            let mute = false;
+
+            let subtitles;
+            let curSbs;
+            let subtitleUrl;
+
+            function syncProgress_(currentTime){
+                progressRangeEle.value = currentTime;
+                progressCurrentEle.innerHTML = convertSecondsToTime(currentTime);
+            }
+
+            function findSubtitle(time, offset){
+                let index = null;
+                for(let i = 0; i< subtitles.length;i++){
+                    let sbs = subtitles[i];
+                    if(time<sbs[0].st){
+                        break;
+                    }
+                    index = i;
+                }
+                if(index == null){
+                    return null;
+                }
+                index = index+offset;
+                if(index<0){
+                    index =0;
+                }else if(index>subtitles.length-1){
+                    index = subtitles.length-1;
+                }
+                return subtitles[index];
+            }
+
+            let timeupdateListener = function(){
+                let currentTime = videoEle.currentTime;
+                syncProgress_(currentTime);
+
+                if(curSbs){
+                    let sbs_ = [];
+                    let sb_ = null;
+                    for(const sb of curSbs){
+                        if(currentTime < sb.st){
+                            sbs_.push(sb);
+                        } else if(currentTime <= sb.ed) {
+                            sb_ = sb;
+                            sbs_.push(sb);
+                        }
+                    }
+                    curSbs = sbs_;
+                    subtitleEle.innerHTML = sb_ ? sb_.txt : "";
+                }
+            };
+
+            function syncProgress(){
+                let currentTime = progressRangeEle.value;
+                videoEle.currentTime = currentTime;
+                syncProgress_(currentTime);
+            }
+
+            function modifyProgress (offset, cc){
+                let sbs = findSubtitle(videoEle.currentTime, offset);
+                if(sbs == null){
+                    return;
+                }
+                let currentTime = sbs[0].st;
+                videoEle.currentTime = currentTime;
+                syncProgress_(currentTime);
+                if(cc){
+                    curSbs = sbs;
+                }
+            };
+
+            function syncVolume(){
+                let v = volumeRangeEle.value;
+                if(v === 0){
+                    mute = true;
+                    volume = 1;
+                    volumeMuteEle.innerHTML = "🔕";
+                }else {
+                    mute = false;
+                    volume = v;
+                    volumeMuteEle.innerHTML = "🔔";
+                }
+                videoEle.volume = v;
+            }
+
+            function initVideo(){
+                let datas = videosEle.value.split("|");
+                subtitleUrl = "video/"+ datas[2];
+                videoSourceEle.src = "video/"+datas[0];
+                videoSourceEle.type = datas[1];
+                videoEle.load();
+                playEle.innerHTML = "▶️";
+            }
+
+            preCcEle.addEventListener('click', function(){
+                modifyProgress(-1, true);
+            });
+            curCcEle.addEventListener('click', function(){
+                modifyProgress(0, true);
+            });
+            nextCcEle.addEventListener('click', function(){
+                modifyProgress(1, true);
+            });
+            preEle.addEventListener('click', function(){
+                modifyProgress(-1, false);
+            });
+            curEle.addEventListener('click', function(){
+                modifyProgress(0, false);
+            });
+            nextEle.addEventListener('click', function(){
+                modifyProgress(1, false);
+            });
+            playEle.addEventListener('click', function(){
+                if (videoEle.paused) {
+                    videoEle.play();
+                    videoEle.addEventListener('timeupdate', timeupdateListener);
+                    playEle.innerHTML = "⏸️";
+                } else {
+                    videoEle.pause();
+                    videoEle.removeEventListener('timeupdate', timeupdateListener);
+                    playEle.innerHTML = "▶️";
+                }
+            });
+            progressRangeEle.addEventListener('change', function(){
+                syncProgress();
+            });
+            fullscreenEle.addEventListener('click', function(){
+                if (!document.fullscreenElement) {
+                    if (videoEle.requestFullscreen) {
+                        videoEle.requestFullscreen();
+                    } else if (videoEle.mozRequestFullScreen) { // Firefox
+                        videoEle.mozRequestFullScreen();
+                    } else if (videoEle.webkitRequestFullscreen) { // Chrome, Safari 和 Opera
+                        videoEle.webkitRequestFullscreen();
+                    } else if (videoEle.msRequestFullscreen) { // IE/Edge
+                        videoEle.msRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                }
+            });
+            volumeMuteEle.addEventListener('click', function(){
+                if(mute){
+                    mute = false;
+                    volumeRangeEle.value = volume;
+                    volumeMuteEle.innerHTML = "🔔";
+                } else {
+                    mute = true;
+                    volumeRangeEle.value = 0;
+                    volumeMuteEle.innerHTML = "🔕";
+                }
+                videoEle.volume = volumeRangeEle.value;
+            });
+            volumeRangeEle.addEventListener('change', e=>{
+                syncVolume();
+            });
+
+            videoEle.addEventListener('loadedmetadata', function() {
+                fetch(subtitleUrl)
+                    .then(response => response.text())
+                    .then(data => {
+                    subtitles = [];
+                    let sbs = null;
+                    for(let sb_ of data.split('\n\n')){
+                        if(sb_===""){
+                            continue;
+                        }
+                        const subtitleParts = sb_.split('\n');
+                        const times = subtitleParts[1].split(' --> ');
+                        const sb = {
+                            st: convertTimeToSeconds(times[0]),
+                            ed: convertTimeToSeconds(times[1]),
+                            txt: subtitleParts.slice(2).join('<br/>')
+                        };
+                        if(sbs == null){
+                            sbs = [sb];
+                            subtitles.push(sbs);
+                        } else {
+                            let first = sbs[0];
+                            let last = sbs[sbs.length-1];
+                            if(sb.st-last.ed>10 || last.ed-first.st>60){
+                                sbs = [sb];
+                                subtitles.push(sbs);
+                            } else {
+                                sbs.push(sb);
+                            }
+                        }
+                    }
+                    progressDurationEle.innerHTML = convertSecondsToTime(videoEle.duration);
+                    progressRangeEle.max = videoEle.duration;
+                    syncVolume();
+                    syncProgress();
+                });
+            });
+            videosEle.addEventListener("change", function(){
+                initVideo();
+            });
+
+            initVideo();
+        });
+    </script>
+</head>
+<body>
+<div id="video-container">
+    <div id="video-wrapper">
+        <video id="video" preload="metadata">
+            <source/>
+        </video>
+        <div id="subtitle-wrapper">
+            <span id="subtitle"></span>
+        </div>
+    </div>
+    <div id="video-controls">
+        <div id="progress">
+            <input id="progress-range" type="range"/>
+        </div>
+        <div id="controls">
+            <button id="volume-mute" type="button"></button>
+            <input id="volume-range" type="range" value="1" max="1" min="0" step="0.01"/>
+            <button id="fullscreen" type="button">▣</button>
+            <button id="pre-cc" type="button">⏮️️cc</button>
+            <button id="cur-cc" type="button">🔁cc</button>
+            <button id="next-cc" type="button">⏭️cc</button>
+            <button id="pre" type="button">⏮️</button>
+            <button id="cur" type="button">🔁</button>
+            <button id="next" type="button">⏭️</button>
+            <button id="play-pause" type="button">▶️</button>
+            <span id="current"></span>/<span id="duration"></span>
+            <select id="videos">
+                <option value="sintel-short.mp4|video/mp4|sintel-short-en.srt" selected="selected">sintel-short</option>
+                <option value="Life of Pi (2012).mp4|video/mp4|Life.of.Pi.2012.1080p.BluRay.x265-RARBG.eng.srt">Life of Pi</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
