@@ -21,34 +21,50 @@
       border: none;
     }
     #subtitle {
-      margin: 10px auto;
+      margin: 5px auto; /* 缩小上下间距 */
       width: 100%;
       max-width: 800px;
-      height: 250px; /* 高度 = 原来的 2.5 倍 */
+      height: 250px;
       overflow-y: auto;
       text-align: left;
       padding: 10px;
       box-sizing: border-box;
-      background: #e6f2fa;
+      background: #c0dff0; /* 比之前更深一点的淡蓝色 */
       border-radius: 5px;
+      font-size: 2em;
+    }
+    #info-box {
+      display: flex;
+      align-items: center;   /* 垂直居中 */
+      justify-content: center; /* 水平居中 */
+      width: 100%;           /* 改为100% */
+      max-width: 800px;
+      margin: 5px auto;      /* 缩小上下间距 */
+      font-size: 2.4em;
+      height: 70px;
+      box-sizing: border-box;
+      border-radius: 5px;
+      background: #dcdcdc; /* 略深的浅灰色 */
+      color: #333;
     }
     .btn {
       display: block;
-      width: 100%;   /* 铺满 */
+      width: 100%;
       max-width: 800px;
-      margin: 10px auto 0 auto;
+      margin: 25px auto 0 auto; /* 增加垂直间距，防止误触 */
       padding: 12px;
-      font-size: 1.2em;
-      height: 100px; /* 高度 = 原来的 2 倍 */
+      font-size: 2.4em;
+      height: 100px;
       box-sizing: border-box;
-      border: none;
+      border: 1px solid #aaa;  /* 保持按钮有边框 */
       border-radius: 5px;
-      background: #007BFF;
-      color: white;
+      background: #dcdcdc; /* 略深的浅灰色 */
+      color: #333;
       cursor: pointer;
+      font-weight: bold;
     }
     .btn:hover {
-      background: #0056b3;
+      background: #c8c8c8;
     }
   </style>
 </head>
@@ -57,8 +73,9 @@
   <div id="player"></div>
 </div>
 <div id="subtitle"></div>
+<div id="info-box">--/--</div>
 <div>
-  <button class="btn" onclick="playRandom()">Random</button>
+  <button class="btn" onclick="randomOnly()">Random</button>
   <button class="btn" onclick="play()">Play</button>
   <button class="btn" onclick="stop()">Stop</button>
   <button class="btn" onclick="toggleSubtitle()">Show</button>
@@ -70,10 +87,10 @@
 <script>
   let data = [];
   let currentSub = null;
+  let currentIndex = -1;
   let subtitleVisible = false;
   let player;
 
-  // YouTube IFrame API 初始化
   function onYouTubeIframeAPIReady() {
     player = new YT.Player("player", {
       height: "45%",
@@ -86,35 +103,37 @@
   async function loadData() {
     const response = await fetch("enYoutube/subs.json");
     data = await response.json();
+    randomOnly(); // 页面加载后随机一次（不播放，字幕隐藏）
   }
 
   function pickRandom() {
     if (data.length === 0) return null;
     const video = data[Math.floor(Math.random() * data.length)];
-    const event = video.events[Math.floor(Math.random() * video.events.length)];
-    if (!event.segs || event.segs.length === 0) return pickRandom();
+    currentIndex = Math.floor(Math.random() * video.events.length);
+    const event = video.events[currentIndex];
+    if (!event || !event.segs || event.segs.length === 0) return pickRandom();
     const lines = event.segs.map(s => s.utf8.trim()).filter(Boolean);
     if (lines.length === 0) return pickRandom();
     const s = event.tStartMs / 1000;
     const e = (event.tStartMs + event.dDurationMs) / 1000;
-    return { id: video.id, s, e, lines };
+    return { id: video.id, s, e, lines, idx: currentIndex + 1 };
   }
 
-  function playRandom() {
+  function randomOnly() {
     currentSub = pickRandom();
+    if (!currentSub) return;
+    subtitleVisible = false; // 随机时字幕默认隐藏
+    updateSubtitle();
+    updateInfo();
+  }
+
+  function play() {
     if (!currentSub) return;
     player.loadVideoById({
       videoId: currentSub.id,
       startSeconds: currentSub.s,
       endSeconds: currentSub.e
     });
-    updateSubtitle();
-  }
-
-  function play() {
-    if (!currentSub) return;
-    player.seekTo(currentSub.s);
-    player.playVideo();
     updateSubtitle();
   }
 
@@ -128,8 +147,18 @@
     const el = document.getElementById("subtitle");
     if (subtitleVisible && currentSub) {
       el.innerHTML = currentSub.lines.map(l => `<div>${l}</div>`).join("");
+      el.scrollTop = 0;
     } else {
       el.innerHTML = "";
+    }
+  }
+
+  function updateInfo() {
+    const el = document.getElementById("info-box");
+    if (currentSub) {
+      el.textContent = `${currentSub.idx}/${currentSub.id}`;
+    } else {
+      el.textContent = "--/--";
     }
   }
 
