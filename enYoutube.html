@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>EnYoutube</title>
   <style>
     body {
@@ -21,7 +21,7 @@
       border: none;
     }
     #subtitle {
-      margin: 5px auto; /* 缩小上下间距 */
+      margin: 5px auto;
       width: 100%;
       max-width: 800px;
       height: 250px;
@@ -29,59 +29,73 @@
       text-align: left;
       padding: 10px;
       box-sizing: border-box;
-      background: #c0dff0; /* 比之前更深一点的淡蓝色 */
+      background: #b7d6ea; /* 淡蓝背景 */
       border-radius: 5px;
       font-size: 2em;
+      line-height: 1.4;
+      color: #111;
     }
     #info-box {
       display: flex;
-      align-items: center;   /* 垂直居中 */
-      justify-content: center; /* 水平居中 */
-      width: 100%;           /* 改为100% */
+      align-items: center;
+      justify-content: center;
+      width: 100%;
       max-width: 800px;
-      margin: 5px auto;      /* 缩小上下间距 */
+      margin: 5px auto;
       font-size: 2.4em;
-      height: 70px;
+      height: 70px; /* 🔥 改为 70px */
       box-sizing: border-box;
       border-radius: 5px;
-      background: #dcdcdc; /* 略深的浅灰色 */
-      color: #333;
+      background: #d3d3d3;
+      color: #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .btn {
       display: block;
       width: 100%;
       max-width: 800px;
-      margin: 25px auto 0 auto; /* 增加垂直间距，防止误触 */
+      margin: 28px auto 0 auto;
       padding: 12px;
       font-size: 2.4em;
       height: 100px;
       box-sizing: border-box;
-      border: 1px solid #aaa;  /* 保持按钮有边框 */
+      border: 1px solid #9c9c9c;
       border-radius: 5px;
-      background: #dcdcdc; /* 略深的浅灰色 */
-      color: #333;
+      background: #d3d3d3;
+      color: #222;
       cursor: pointer;
       font-weight: bold;
     }
-    .btn:hover {
-      background: #c8c8c8;
+    .btn:hover { background: #c5c5c5; }
+    .prev {  }
+    .highlight {
+      color: #000;
+      background: #ffeb73;
+      font-weight: bold;
+      padding: 2px 4px;
+      border-radius: 3px;
     }
+    .next {  }
   </style>
 </head>
 <body>
 <div id="video-container">
   <div id="player"></div>
 </div>
+
 <div id="subtitle"></div>
 <div id="info-box">--/--</div>
+
 <div>
   <button class="btn" onclick="randomOnly()">Random</button>
-  <button class="btn" onclick="stop()">Stop</button>
   <button class="btn" onclick="play()">Play</button>
+  <button class="btn" onclick="stop()">Stop</button>
   <button class="btn" onclick="toggleSubtitle()">Show</button>
 </div>
 
-<!-- 引入 YouTube IFrame API -->
+<!-- YouTube IFrame API -->
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
@@ -100,35 +114,78 @@
     });
   }
 
+  function encodeHTML(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   async function loadData() {
     const response = await fetch("enYoutube/subs.json");
-    data = await response.json();
-    randomOnly(); // 页面加载后随机一次（不播放，字幕隐藏）
+    let raw = await response.json();
+
+    // 🔥 过滤掉空白字幕片段 + 缺少起止时间的片段
+    data = raw.map(video => {
+      return {
+        id: video.id,
+        events: video.events.filter(ev => {
+          if (!ev || !ev.segs) return false;
+          if (ev.tStartMs == null || ev.dDurationMs == null) return false; // 没有时间的剔除
+          const text = ev.segs.map(s => (s && s.utf8 ? s.utf8.trim() : "")).join(" ");
+          return text.length > 0;
+        })
+      };
+    }).filter(v => v.events.length > 0);
+
+    randomOnly();
+  }
+
+
+  function joinSegs(ev) {
+    if (!ev || !ev.segs) return "";
+    return ev.segs.map(s => (s && s.utf8 ? s.utf8.trim() : ""))
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function pickRandom() {
-    if (data.length === 0) return null;
+    if (!data || data.length === 0) return null;
     const video = data[Math.floor(Math.random() * data.length)];
+    if (!video || !video.events || video.events.length === 0) return null;
+
     currentIndex = Math.floor(Math.random() * video.events.length);
     const event = video.events[currentIndex];
     if (!event || !event.segs || event.segs.length === 0) return pickRandom();
-    const lines = event.segs.map(s => s.utf8.trim()).filter(Boolean);
-    if (lines.length === 0) return pickRandom();
-    const s = event.tStartMs / 1000;
-    const e = (event.tStartMs + event.dDurationMs) / 1000;
-    return { id: video.id, s, e, lines, idx: currentIndex + 1 };
+
+    const prevEvent = currentIndex > 0 ? video.events[currentIndex - 1] : null;
+    const nextEvent = currentIndex < video.events.length - 1 ? video.events[currentIndex + 1] : null;
+
+    return {
+      id: video.id,
+      s: (event.tStartMs || 0) / 1000,
+      e: (event.tStartMs + (event.dDurationMs || 0)) / 1000,
+      prevText: prevEvent ? joinSegs(prevEvent) : "",
+      currText: joinSegs(event),
+      nextText: nextEvent ? joinSegs(nextEvent) : "",
+      idx: currentIndex + 1
+    };
   }
 
   function randomOnly() {
     currentSub = pickRandom();
     if (!currentSub) return;
-    subtitleVisible = false; // 随机时字幕默认隐藏
+    subtitleVisible = false;
     updateSubtitle();
     updateInfo();
   }
 
   function play() {
-    if (!currentSub) return;
+    if (!currentSub || !player) return;
     player.loadVideoById({
       videoId: currentSub.id,
       startSeconds: currentSub.s,
@@ -138,15 +195,21 @@
   }
 
   function stop() {
-    if (player) {
-      player.pauseVideo();
-    }
+    if (player) player.pauseVideo();
   }
 
   function updateSubtitle() {
     const el = document.getElementById("subtitle");
     if (subtitleVisible && currentSub) {
-      el.innerHTML = currentSub.lines.map(l => `${l}`).join(" ");
+      let html = "";
+      if (currentSub.prevText) {
+        html += `<span class="prev">${encodeHTML(currentSub.prevText)}</span> `;
+      }
+      html += `<span class="highlight">${encodeHTML(currentSub.currText)}</span>`;
+      if (currentSub.nextText) {
+        html += ` <span class="next">${encodeHTML(currentSub.nextText)}</span>`;
+      }
+      el.innerHTML = html;
       el.scrollTop = 0;
     } else {
       el.innerHTML = "";
@@ -155,15 +218,12 @@
 
   function updateInfo() {
     const el = document.getElementById("info-box");
-    if (currentSub) {
-      el.textContent = `${currentSub.idx}/${currentSub.id}`;
-    } else {
-      el.textContent = "--/--";
-    }
+    if (currentSub) el.textContent = `${currentSub.idx}/${currentSub.id}`;
+    else el.textContent = "--/--";
   }
 
   function toggleSubtitle() {
-    subtitleVisible = true; // once shown, always shown
+    subtitleVisible = true;
     updateSubtitle();
   }
 
