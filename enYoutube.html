@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EnYoutube</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 10px;
+      margin: 0;
+      background: #f9f9f9;
+    }
+    #video-container {
+      max-width: 800px;
+      margin: auto;
+    }
+    iframe {
+      width: 100%;
+      height: 45vh;
+      border: none;
+    }
+    #subtitle {
+      margin: 10px auto;
+      width: 100%;
+      max-width: 500px;
+      height: 250px; /* 固定高度 */
+      overflow-y: auto;
+      text-align: left;
+      padding: 10px;
+      box-sizing: border-box;
+      background: #e6f2fa; /* 淡蓝色 */
+      border-radius: 5px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      max-width: 500px;
+      margin: 8px auto;
+      padding: 12px;
+      font-size: 1.1em;
+      height: 50px; /* 固定高度 */
+      box-sizing: border-box;
+      border: none;
+      border-radius: 5px;
+      background: #007BFF;
+      color: white;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+<div id="video-container">
+  <iframe id="player" allowfullscreen></iframe>
+</div>
+<div id="subtitle"></div>
+<div>
+  <button class="btn" onclick="playRandom()">Random</button>
+  <button class="btn" onclick="play()">Play</button>
+  <button class="btn" onclick="stop()">Stop</button>
+  <button class="btn" onclick="toggleSubtitle()">Show</button>
+</div>
+
+<script>
+  let data = [];
+  let currentVideo = null;
+  let currentSub = null;
+  let subtitleVisible = false;
+
+  async function loadData() {
+    const response = await fetch("enYoutube/subs.json");
+    data = await response.json();
+  }
+
+  function pickRandom() {
+    if (data.length === 0) return null;
+    const video = data[Math.floor(Math.random() * data.length)];
+    const event = video.events[Math.floor(Math.random() * video.events.length)];
+    if (!event.segs || event.segs.length === 0) return pickRandom();
+    const lines = event.segs.map(s => s.utf8.trim()).filter(Boolean);
+    if (lines.length === 0) return pickRandom();
+    const s = event.tStartMs / 1000;
+    const e = (event.tStartMs + event.dDurationMs) / 1000;
+    return { id: video.id, s, e, lines };
+  }
+
+  function playRandom() {
+    currentSub = pickRandom();
+    if (!currentSub) return;
+    currentVideo = currentSub.id;
+    playSegment(currentSub.id, currentSub.s, currentSub.e);
+    updateSubtitle();
+  }
+
+  function play() {
+    if (!currentSub) return;
+    stop();
+    setTimeout(() => playSegment(currentSub.id, currentSub.s, currentSub.e), 200);
+    updateSubtitle();
+  }
+
+  function playSegment(id, start, end) {
+    const player = document.getElementById("player");
+    player.src = `https://www.youtube.com/embed/${id}?start=${Math.floor(start)}&end=${Math.ceil(end)}&autoplay=1`;
+  }
+
+  function stop() {
+    document.getElementById("player").src = "";
+  }
+
+  function updateSubtitle() {
+    const el = document.getElementById("subtitle");
+    if (subtitleVisible && currentSub) {
+      el.innerHTML = currentSub.lines.map(l => `<div>${l}</div>`).join("");
+    } else {
+      el.innerHTML = "";
+    }
+  }
+
+  function toggleSubtitle() {
+    subtitleVisible = true; // once shown, always shown
+    updateSubtitle();
+  }
+
+  loadData();
+</script>
+</body>
+</html>

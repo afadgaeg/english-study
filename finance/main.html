@@ -29,22 +29,28 @@
             font-size: 16px;
             font-weight: bold;
         }
+        #data>.wrapper>.report>.title[data-report-warn=true]{
+            background-color: #FFCCFF;
+        }
         #data>.wrapper>.report>.content .item{
             border-left:1px solid #CCC;
         }
-        #data>.wrapper>.report>.content .item>.cur{
+        #data>.wrapper>.report>.content .item>.self{
             height: 20px;
             background-color: #F6F6F6;
             border-bottom: 1px solid #BBB;
             position : relative;
         }
-        #data>.wrapper>.report>.content .item>.cur>.value{
+        #data>.wrapper>.report>.content .item>.self[data-report-warn=true]{
+            background-color: #FFCCFF;
+        }
+        #data>.wrapper>.report>.content .item>.self>.value{
             position: absolute;
             top:2px;
             right:0;
             z-index:99;
         }
-        #data>.wrapper>.report>.content .item>.cur>.fold{
+        #data>.wrapper>.report>.content .item>.self>.fold{
             width:16px;
             height: 16px;
             position: absolute;
@@ -57,20 +63,20 @@
             font-size: 16px;
             text-align:center;
         }
-        #data>.wrapper>.report>.content .item>.cur>.fold:hover{
+        #data>.wrapper>.report>.content .item>.self>.fold:hover{
             cursor:pointer;
         }
-        #data>.wrapper>.report>.content .item>.cur>.bar{
+        #data>.wrapper>.report>.content .item>.self>.bar{
             height: 4px;
             position: absolute;
             right:0;
             z-index:98;
             top:16px;
         }
-        #data>.wrapper>.report>.content .item>.subs[show=true]{
+        #data>.wrapper>.report>.content .item>.subs[data-show=true]{
             display: block;
         }
-        #data>.wrapper>.report>.content .item>.subs[show=false]{
+        #data>.wrapper>.report>.content .item>.subs[data-show=false]{
             display: none;
         }
     </style>
@@ -80,6 +86,31 @@
         let ele = saulUtils.ele;
         let css = saulUtils.css;
         let getProp = saulUtils.getProp;
+
+        let localOffset = new Date().getTimezoneOffset() * 60 * 1000;
+
+        const { fetch: originalFetch } = window;
+        window.fetch = async (...args) => {
+            let [resource, config] = args;
+            let response = await originalFetch(resource, config);
+            if (!response.ok) {
+                let msg = 'Error, code: '
+                + response.headers.get("Error-Code")
+                + ', message: '
+                + response.headers.get("Error-Message");
+                //                    弹窗显示错误
+                return Promise.reject(msg);
+            }
+            return response;
+        };
+
+        function toFormatTime(timestamp) {
+            let zoneOffset = 8;
+            timestamp = Number(timestamp) + zoneOffset * 60 * 60 * 1000 + localOffset - 1;
+            let time = new Date(timestamp);
+            let timeFormat = time.getFullYear() + "-" + (time.getMonth() + 1) + "-" + time.getDate();
+            return timeFormat;
+        }
 
         function format(s) {
             let head = '';
@@ -109,45 +140,48 @@
             return head + ss_.join("") + tail;
         }
 
-
         document.addEventListener('DOMContentLoaded', e=>{
-            let itemData;
-            let wrapperEles = [];
             let dataEle = document.querySelector("#data");
-            let entityTypes = ['C', 'A2P', 'P', 'M'];
-            let timeRanges = [];
-            let itemMaxValue = 0.0;
+            let entityTypeSelectEle = document.querySelector('#select-entity-type');
+            let dateTypeSelectEle = document.querySelector('#select-date-type');
+            let companyCodeInputEle = document.querySelector('#company-code');
+            let queryButtonEle = document.querySelector('#query');
+            let itemData;
+            let i18nData;
             let itemMaxWidth = 500;
-            let entityTypeSelectEle = document.querySelector('#render-by-entity');
-            let timeSelectEle = document.querySelector('#render-by-time');
+
+            let itemMaxValue = 0.0;
+            let dataHtmlMap = {};
 
             function feature(){
                 for(let itemEle of dataEle.querySelectorAll(":scope>.wrapper>.report>.content .item")){
                     let subsEle = itemEle.querySelector(':scope>.subs');
                     if(subsEle){
-                        subsEle.setAttribute('show', true);
+                        subsEle.dataset.show = true;
                     }
-                    let curEle = itemEle.querySelector(':scope>.cur');
+                    let selfEle = itemEle.querySelector(':scope>.self');
 
-                    let barEle = curEle.querySelector(':scope>.bar');
-                    let wd = itemMaxWidth * barEle.getAttribute('rpt-item-bar') / itemMaxValue;
+                    let barEle = selfEle.querySelector(':scope>.bar');
+                    let wd = itemMaxWidth * barEle.dataset.reportItemBar / itemMaxValue;
                     let color = wd < 0 ? 'red' : 'green';
                     css(barEle, {
                         width : Math.abs(wd)+ "px",
                         "background-color": color
                     });
 
-                    let item = itemEle.getAttribute('rpt-item');
-                    let foldEle = curEle.querySelector(':scope>.fold');
+                    let item = itemEle.dataset.reportItem;
+                    let foldEle = selfEle.querySelector(':scope>.fold');
                     if(foldEle){
                         foldEle.innerHTML = '—';
                         foldEle.removeEventListener("click", foldEle.clickEventListener);
                         foldEle.clickEventListener = ()=>{
-                            for(let itemEle_ of dataEle.querySelectorAll(":scope>.wrapper>.report>.content .item[rpt-item="+ item +"]")){
+                            for(let itemEle_ of dataEle.querySelectorAll(":scope>.wrapper>.report>.content .item[data-report-item="+ item +"]")){
                                 let subsEle_ = itemEle_.querySelector(':scope>.subs');
-                                subsEle_.setAttribute('show', subsEle_.getAttribute('show') === 'true' ? false: true);
-                                let foldEle = itemEle_.querySelector(':scope>.cur>.fold');
-                                foldEle.innerHTML = foldEle.innerHTML === '+'? '—' : '+';
+                                if(subsEle_){
+                                    subsEle_.dataset.show = subsEle_.dataset.show === 'true' ? false: true;
+                                    let foldEle = itemEle_.querySelector(':scope>.self>.fold');
+                                    foldEle.innerHTML = foldEle.innerHTML === '+'? '—' : '+';
+                                }
                             }
                         };
                         foldEle.addEventListener('click', foldEle.clickEventListener);
@@ -155,94 +189,79 @@
                 }
             }
 
-            function tp(et, time, items){
+            function timePoint(timePointReport){
+                let time = timePointReport.time;
+                let titleEle = ele('div', {
+                    class : "title"
+                }, [document.createTextNode(toFormatTime(time))]);
                 let contentEle = ele('div', {
                     class:"content"
                 });
-                let title = et +':'+ time;
                 let reportEle = ele('div',{
-                    "rpt-tt" : "tp",
-                    "rpt-et": et,
-                    "rpt-time" : time,
-                    class : "report time-point",
-                    id: title
+                    "data-report-time-type" : "timePoint",
+                    "data-report-time" : time,
+                    class : "report",
+                    id: time
                 }, [
-                    ele('div', {
-                        class : "title"
-                    }, [document.createTextNode(title)]),
+                    titleEle,
                     contentEle
                 ]);
-                for(let i = 0;i< itemData.timePointItems.length;i++){
-                    fillItem(toItemMap(items), contentEle, itemData.timePointItems[i]);
+                for(let i = 0;i< itemData.points.length;i++){
+                    fillItem(timePointReport, i18nData.TimePointReport, titleEle, contentEle, itemData.points[i]);
                 }
                 return reportEle;
             }
 
-            function tr(r){
-                let et = r.entityType;
-                let tr = r.timeRange;
-                let tr_ = tr.begin.time+'_'+tr.begin.version + '-' + tr.end.time + '_' + tr.end.version;
-                let title = et +':' + tr_;
-                if(!timeRanges.includes(tr_)){
-                    timeRanges.push(tr_);
-                }
+            function timeRange(timeRangeReport){
+                let et = timeRangeReport.entityType;
+                let time = timeRangeReport.time;
+                let titleEle = ele('div', {
+                    class : "title"
+                }, [document.createTextNode(toFormatTime(time))]);
                 let contentEle = ele('div', {
                     class: "content"
                 });
                 let reportEle = ele('div', {
-                    "rpt-tt": "tr",
-                    "rpt-et": et,
-                    "rpt-tr": tr_,
-                    "rpt-time": tr.end.time + '_' + tr.end.version,
-                    class : "report time-range",
-                    id: title
+                    "data-report-time-type": "timeRange",
+                    "data-report-time": time,
+                    class : "report",
+                    id: time
                 }, [
-                    ele('div', {
-                        class : "title",
-                        html: title
-                    }),
+                    titleEle,
                     contentEle
                 ]);
-                let itemMap = toItemMap(r.items);
-                for(let i = 0;i< itemData.timeRangeItems.length;i++){
-                    fillItem(itemMap, contentEle, itemData.timeRangeItems[i]);
+                for(let i = 0;i< itemData.ranges.length;i++){
+                    fillItem(timeRangeReport, i18nData.TimeRangeReport, titleEle, contentEle, itemData.ranges[i]);
                 }
 
-                if(et === 'C'){
+                if(et === '1'){
                     let chartEle = ele('div', {
                         class: 'chart'
                     });
                     css(chartEle, {
-                        width: "500px",
-                        height:"500px"
+                        width: itemMaxWidth + "px",
+                        height: "500px"
                     });
                     contentEle.appendChild(chartEle);
-                    let wacc = itemMap['平均借贷成本'];
-                    let ce = itemMap['平均占用资本'];
-                    let ic = itemMap['平均投入资本'];
+                    let wacc = timeRangeReport['pjjdcb'];
+                    let leverage = timeRangeReport['pjrzgg'];
                     let lineChartData = [{
-                        name:'税后平均占用资本回报率',
-                        denominator: ce,
+                        fieldName: 'shpjzyzbhbl',
                         color: '#FFCC99'
                     }, {
-                        name:'税前平均占用资本回报率',
-                        denominator: ce,
+                        fieldName: 'sqpjzyzbhbl',
                         color: '#CD950C'
                     }, {
-                        name:'扣非税后平均占用资本回报率',
-                        denominator: ce,
+                        fieldName: 'kfshpjzyzbhbl',
                         color: '#9ACD32'
                     }, {
-                        name:'扣非税前平均占用资本回报率',
-                        denominator: ce,
+                        fieldName: 'kfsqpjzyzbhbl',
                         color: '#006400'
                     }, {
-                        name:'税后平均投入资本回报率',
-                        denominator: ic,
+                        fieldName: 'shpjtrzbhbl',
                         color: '#BA55D3'
                     }, {
-                        name:'税前平均投入资本回报率',
-                        denominator: ic,
+                        fieldName: 'sqpjtrzbhbl',
                         color: '#8A2BE2'
                     }, ];
                     let series = [];
@@ -251,20 +270,21 @@
                     let xInterval = (xMax-1)/10;
                     for(let it of lineChartData){
                         let data = [];
-                        let den = it.denominator;
-                        let y = itemMap[it.name];
-                        if(y*100>yMax){
-                            yMax = Math.ceil(y*100);
-                        }
+                        let y = timeRangeReport[it.fieldName];
                         for(let i = 1; i<= xMax+0.000001; i+=xInterval){
-                            data.push([i, (den*y - wacc*(den*(1-1/i)))/den*100]);
+                            let y_ = (y - wacc/leverage + wacc/i) *100;
+                            if(y_>yMax){
+                                yMax = Math.ceil(y_);
+                            }
+                            data.push([i, y_]);
                         }
                         series.push({
-                            name: it.name,
+                            name: i18nData.TimeRangeReport[it.fieldName],
                             data: data,
                             type: 'line'
                         });
                     }
+                    console.log(series);
 
                     let option = {
                         //                        title: {
@@ -275,7 +295,7 @@
                             orient: 'horizontal',
                             x: 'left',
                             y: 'top',
-                            data: lineChartData.map(i => i.name)
+                            data: lineChartData.map(i => i18nData.TimeRangeReport[i.fieldName])
                         },
                         grid: {
                             top: '20%',
@@ -307,177 +327,160 @@
                 return reportEle;
             }
 
-            function wrapper(k, w) {
-                let ss = k.split(':');
-                let et = ss[0];
-                let time = ss[1];
-                let wrapperEle = ele('div',{
-                    "rpt-et" : et,
-                    "rpt-time" : time,
-                    class:"wrapper"
-                });
-                wrapperEle.appendChild(tp(et, time, w.tp ? w.tp.items : {}));
-                if(w.tr){
-                    wrapperEle.appendChild(tr(w.tr));
-                }
-                return wrapperEle;
-            }
-
-            function renderByEntityType(et) {
-                for(let optionEle of timeSelectEle.querySelectorAll(':scope>option')){
-                    optionEle.selected = false;
-                }
-                timeSelectEle.querySelector(':scope>option').selected = true;
-                dataEle.innerHTML = '';
-                for(let wrapperEle of wrapperEles){
-                    if(wrapperEle.getAttribute('rpt-et') === et){
-                        dataEle.appendChild(wrapperEle);
-                    }
-                }
-                feature();
-            }
-
-            function renderByTime(timeRange) {
-                for(let optionEle of entityTypeSelectEle.querySelectorAll(':scope>option')){
-                    optionEle.selected = false;
-                }
-                entityTypeSelectEle.querySelector(':scope>option').selected = true;
-                let times = timeRange.split("-");
-                dataEle.innerHTML = '';
-                for(let wrapperEle of wrapperEles){
-                    let time = wrapperEle.getAttribute('rpt-time');
-                    if(times.includes(time)){
-                        dataEle.appendChild(wrapperEle);
-                    }
-                }
-                feature();
-            }
-
-            fetch('./json/common/items.json').then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return Promise.reject('something went wrong!');
-                }
-            }).then(data => {
-                itemData = data;
-                document.querySelector('#query').removeAttribute('disabled');
-                console.log(itemData);
-            }).catch(error => console.log('error is', error));
-
-            function toItemMap(items){
-                let mp = {};
-                for(let i = 0; i< items.length; i++){
-                    mp[items[i].itemType] = items[i].value;
-                }
-                return mp;
-            }
-
-            function refresh(data){
-                console.log(data);
-
-                wrapperEles = [];
-                let wrapperKeys = [];
-                let wrapperMap = {};
-                for(let i = 0; i< data.timePointReports.length;i++){
-                    let r = data.timePointReports[i];
-                    let k = r.entityType+':'+r.time.time + '_' + r.time.version;
-                    getProp(wrapperMap, [k]).tp = r;
-                    if(!wrapperKeys.includes(k)){
-                        wrapperKeys.push(k);
-                    }
-                }
-                for(let i = 0; i< data.timeRangeReports.length;i++){
-                    let r = data.timeRangeReports[i];
-                    let k = r.entityType+':'+r.timeRange.end.time + '_' + r.timeRange.end.version;
-                    getProp(wrapperMap, [k]).tr = r;
-                    if(!wrapperKeys.includes(k)){
-                        wrapperKeys.push(k);
-                    }
-                }
-                for(let i = 0;i<wrapperKeys.length; i++){
-                    let k = wrapperKeys[i];
-                    let w = wrapperMap[k];
-                    wrapperEles.push(wrapper(k, w));
-                }
-
-                entityTypeSelectEle.appendChild(ele('option', {
-                    style : "display: none"
-                }));
-                timeSelectEle.appendChild(ele('option', {
-                    style : "display: none"
-                }));
-                for(let i = 0; i< entityTypes.length; i++){
-                    entityTypeSelectEle.appendChild(ele('option', {
-                        value: entityTypes[i]
-                    }, [document.createTextNode(entityTypes[i])]));
-                }
-                for(let i = 0; i< timeRanges.length; i++){
-                    timeSelectEle.appendChild(ele('option', {
-                        value : timeRanges[i]
-                    }, [document.createTextNode(timeRanges[i])]));
-                }
-                entityTypeSelectEle.addEventListener('change', function(){
-                    renderByEntityType(entityTypeSelectEle.value);
-                });
-                timeSelectEle.addEventListener('change',function(){
-                    renderByTime(timeSelectEle.value);
-                });
-
-                entityTypeSelectEle.querySelector(':scope>option[value=C]').selected = true;
-                renderByEntityType("C");
-            }
-
-            function fillItem(mp, parentEle, item){
+            function fillItem(report, i18n, titleEle, parentEle, item){
+                let name = item.fieldName ? i18n[item.fieldName] : item.name;
                 let wrapperEle = ele('div', {
-                    "rpt-item" :item.key,
+                    "data-report-item" :name,
                     class:"item"
                 });
                 parentEle.appendChild(wrapperEle);
-                let v = mp[item.key];
+                let v;
+                if(item.fieldName){
+                    v = report[item.fieldName];
+                }
                 let v_ = v ? Math.abs(v) : 0;
                 if(v_>itemMaxValue){
                     itemMaxValue = v_;
                 }
-                let curEle = ele('div', {
-                    class:"cur"
+                let selfEle = ele('div', {
+                    class:"self"
                 }, [
                     ele('div', {
                         class : "key"
-                    }, [document.createTextNode(item.key)]),
+                    }, [document.createTextNode(name)]),
                     ele('div', {
-                        "rpt-item-bar": v,
+                        "data-report-item-bar": v,
                         class: "bar"
                     }),
                     ele('div', {
                         class: "value"
                     }, [document.createTextNode(v?format(v):'')])
                 ]);
-                wrapperEle.appendChild(curEle);
+                if(item.fieldName === 'cwfyLxzc' || item.fieldName === 'cwfyLxsr'){
+                    if(report.financialExpensesWarn){
+                        selfEle.dataset.reportWarn = true;
+                        titleEle.dataset.reportWarn = true;
+                    }
+                }
+                if(item.fieldName === 'yylrwc'
+                || item.fieldName === 'czhdxjlcxjwc'
+                || item.fieldName === 'zczjwc'
+                || item.fieldName === 'tzhdxjlrxjwc'){
+                    if(report[item.fieldName] != "0"){
+                        selfEle.dataset.reportWarn = true;
+                        titleEle.dataset.reportWarn = true;
+                    }
+                }
+                wrapperEle.appendChild(selfEle);
                 if(item.subs){
-                    curEle.appendChild(ele('div', {class:"fold"}));
+                    selfEle.appendChild(ele('div', {class:"fold"}));
                     let subsEle = ele('div', {class:"subs"});
                     wrapperEle.appendChild(subsEle);
                     for(let i = 0; i< item.subs.length; i++){
-                        fillItem(mp, subsEle, item.subs[i]);
+                        fillItem(report, i18n, titleEle, subsEle, item.subs[i]);
                     }
                 }
             }
 
-            document.querySelector("#query").addEventListener('click', function() {
-                let code = document.querySelector("#code").value.trim();
+            fetch('http://127.0.0.1:9001/finance/i18n/list', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+            }).then(response => {
+                return response.json();
+            }).then(json => {
+                i18nData = {};
+                for(let it of json){
+                    let i18n = {};
+                    for(let it_ of it.items){
+                        i18n[it_.id] = it_.desc;
+                    }
+                    i18nData[it.name] = i18n;
+                }
+                console.log(i18nData);
+            });
+
+            fetch('http://127.0.0.1:9001/finance/company/itemTree', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+            }).then(response => {
+                return response.json();
+            }).then(json => {
+                itemData = json;
+                queryButtonEle.removeAttribute('disabled');
+                console.log(itemData);
+            });
+
+            function refresh(data){
+                itemMaxValue = 0.0;
+                dataHtmlMap = {};
+                let t1 = {};
+                t1.rs = data.timePointReports;
+                t1.func = timePoint;
+                let t2 = {};
+                t2.rs = data.timeRangeReports;
+                t2.func = timeRange;
+                for(let t of new Array(t1,t2)){
+                    for(let r of t.rs){
+                        let wrapperEleMap = dataHtmlMap[r.entityType];
+                        if(!wrapperEleMap){
+                            wrapperEleMap = new Map();
+                            dataHtmlMap[r.entityType] = wrapperEleMap;
+                        }
+                        let wrapperEle = wrapperEleMap.get(r.time);
+                        if(!wrapperEle){
+                            wrapperEle = ele('div',{
+                                "data-report-time" : r.time,
+                                class:"wrapper"
+                            });
+                            wrapperEleMap.set(r.time, wrapperEle);
+                        }
+                        wrapperEle.appendChild(t.func(r));
+                    }
+                }
+                render(entityTypeSelectEle.value);
+            }
+
+            function render(entityType){
+                let rs = dataHtmlMap[entityType];
+                if(!rs){
+                    return;
+                }
+                dataEle.innerHTML = '';
+                for(let r of rs.values()){
+                    dataEle.appendChild(r);
+                }
+                feature();
+            }
+
+            queryButtonEle.addEventListener('click', function() {
+                let code = companyCodeInputEle.value.trim();
                 if(code === ''){
                     return;
                 }
-                fetch("./json/"+ code+".json").then(response => {
-                    if (response.ok) {
-                        return response.json();
-                    } else {
-                        return Promise.reject('something went wrong!');
-                    }
+                fetch('http://127.0.0.1:9001/finance/company/detail', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: code,
+                        dateType: dateTypeSelectEle.value
+                    }),
                 }).then(response => {
-                    refresh(response);
-                }).catch(error => console.log('error is', error));
+                    return response.json();
+                }).then(json=>{
+                    refresh(json);
+                });
+            });
+
+            entityTypeSelectEle.addEventListener('change', function() {
+                render(entityTypeSelectEle.value);
             });
         });
 
@@ -490,11 +493,20 @@
 <div id="app">
     <div id="form">
         <div>
-            <input id="code"/><button id="query" type="button" disabled="true">查询</button>
-        </div>
-        <div>
-            <select id="render-by-entity"></select>
-            <select id="render-by-time"></select>
+            <input id="company-code"/>
+            <select id="select-date-type">
+                <option value="4" selected="selected">年报</option>
+                <option value="1">一季报</option>
+                <option value="2">半年报</option>
+                <option value="3">三季报</option>
+            </select>
+            <button id="query" type="button" disabled="true">查询</button>
+
+            <select id="select-entity-type">
+                <option value="1" selected="selected">合并</option>
+                <option value="2">归母</option>
+                <option value="4">少数股东</option>
+            </select>
         </div>
     </div>
     <div id="data">
