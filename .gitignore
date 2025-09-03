@@ -38,8 +38,7 @@ proguard/
 *.iml
 target/
 
-# json
-*.json
+finance/**/*.json
 
 *.mp4
 *.webm
