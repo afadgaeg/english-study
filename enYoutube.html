@@ -23,23 +23,23 @@
     #subtitle {
       margin: 10px auto;
       width: 100%;
-      max-width: 500px;
-      height: 250px; /* 固定高度 */
+      max-width: 800px;
+      height: 250px; /* 高度 = 原来的 2.5 倍 */
       overflow-y: auto;
       text-align: left;
       padding: 10px;
       box-sizing: border-box;
-      background: #e6f2fa; /* 淡蓝色 */
+      background: #e6f2fa;
       border-radius: 5px;
     }
     .btn {
       display: block;
-      width: 100%;
-      max-width: 500px;
-      margin: 8px auto;
+      width: 100%;   /* 铺满 */
+      max-width: 800px;
+      margin: 10px auto 0 auto;
       padding: 12px;
-      font-size: 1.1em;
-      height: 50px; /* 固定高度 */
+      font-size: 1.2em;
+      height: 100px; /* 高度 = 原来的 2 倍 */
       box-sizing: border-box;
       border: none;
       border-radius: 5px;
@@ -54,7 +54,7 @@
 </head>
 <body>
 <div id="video-container">
-  <iframe id="player" allowfullscreen></iframe>
+  <div id="player"></div>
 </div>
 <div id="subtitle"></div>
 <div>
@@ -64,11 +64,24 @@
   <button class="btn" onclick="toggleSubtitle()">Show</button>
 </div>
 
+<!-- 引入 YouTube IFrame API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
 <script>
   let data = [];
-  let currentVideo = null;
   let currentSub = null;
   let subtitleVisible = false;
+  let player;
+
+  // YouTube IFrame API 初始化
+  function onYouTubeIframeAPIReady() {
+    player = new YT.Player("player", {
+      height: "45%",
+      width: "100%",
+      videoId: "",
+      playerVars: { autoplay: 0, controls: 1 }
+    });
+  }
 
   async function loadData() {
     const response = await fetch("enYoutube/subs.json");
@@ -90,25 +103,25 @@
   function playRandom() {
     currentSub = pickRandom();
     if (!currentSub) return;
-    currentVideo = currentSub.id;
-    playSegment(currentSub.id, currentSub.s, currentSub.e);
+    player.loadVideoById({
+      videoId: currentSub.id,
+      startSeconds: currentSub.s,
+      endSeconds: currentSub.e
+    });
     updateSubtitle();
   }
 
   function play() {
     if (!currentSub) return;
-    stop();
-    setTimeout(() => playSegment(currentSub.id, currentSub.s, currentSub.e), 200);
+    player.seekTo(currentSub.s);
+    player.playVideo();
     updateSubtitle();
   }
 
-  function playSegment(id, start, end) {
-    const player = document.getElementById("player");
-    player.src = `https://www.youtube.com/embed/${id}?start=${Math.floor(start)}&end=${Math.ceil(end)}&autoplay=1`;
-  }
-
   function stop() {
-    document.getElementById("player").src = "";
+    if (player) {
+      player.pauseVideo();
+    }
   }
 
   function updateSubtitle() {
