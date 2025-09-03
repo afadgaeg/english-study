@@ -146,7 +146,7 @@
   function updateSubtitle() {
     const el = document.getElementById("subtitle");
     if (subtitleVisible && currentSub) {
-      el.innerHTML = currentSub.lines.map(l => `<div>${l}</div>`).join("");
+      el.innerHTML = currentSub.lines.map(l => `${l}`).join(" ");
       el.scrollTop = 0;
     } else {
       el.innerHTML = "";
