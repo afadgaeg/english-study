@@ -5,83 +5,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>EnYoutube</title>
   <style>
-    body {
-      touch-action: manipulation; /* 禁用双击缩放 */
-      font-family: sans-serif;
-      text-align: center;
-      padding: 2px 8px;
-      margin: 0;
-      background: #f9f9f9;
-      width:100%;
-    }
-    #globe-container{
-      width:100%;
-      margin: 0 auto;
-      max-width: 1200px;
-    }
-    #video-container {
-      width:100%;
-      margin: auto;
-    }
-    iframe {
-      width: 100%;
-      height: 45vh;
-      border: none;
-    }
-    #subtitle {
-      margin: 5px auto;
-      width: 100%;
-      height: 250px;
-      overflow-y: auto;
-      text-align: left;
-      padding: 10px;
-      box-sizing: border-box;
-      background: #b7d6ea; /* 淡蓝背景 */
-      border-radius: 5px;
-      font-size: 2.4em;
-      line-height: 1.4;
-      color: #111;
-    }
-    #info-box {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      margin: 5px auto;
-      font-size: 2.4em;
-      height: 70px; /* 🔥 改为 70px */
-      box-sizing: border-box;
-      border-radius: 5px;
-      background: #d3d3d3;
-      color: #222;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .btn {
-      display: block;
-      width: 100%;
-      margin: 28px auto 0 auto;
-      padding: 12px;
-      font-size: 2.4em;
-      height: 120px;
-      box-sizing: border-box;
-      border: 1px solid #9c9c9c;
-      border-radius: 5px;
-      background: #d3d3d3;
-      color: #222;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .btn:hover { background: #c5c5c5; }
-    .prev {  }
-    .highlight {
-      color: #000;
-      font-weight: bold;
-      padding: 2px 4px;
-      border-radius: 3px;
-    }
-    .next {  }
+      *,*::before,*::after {
+          box-sizing: border-box;
+      }
+      body {
+          touch-action: manipulation;
+          font-family: sans-serif;
+          font-size: 16px;
+          text-align: center;
+          padding: 0 8px;
+          margin: 0;
+          background: #f9f9f9;
+          width:100%;
+      }
+      #globe-container{
+          width:100%;
+          margin: 0 auto;
+          max-width: 1200px;
+      }
+      #video-container {
+          width:100%;
+          margin: auto;
+      }
+      iframe {
+          width: 100%;
+          height: 45vh;
+          border: none;
+      }
+      #subtitle {
+          margin: 5px auto;
+          width: 100%;
+          height: 250px;
+          overflow-y: auto;
+          text-align: left;
+          padding: 10px;
+          background: #b7d6ea;
+          border-radius: 5px;
+          line-height: 1.4;
+          color: #111;
+      }
+      #info-box {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          margin: 5px auto;
+          height: 70px;
+          border-radius: 5px;
+          background: #d3d3d3;
+          color: #222;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+      }
+      .btn {
+          display: block;
+          width: 100%;
+          margin: 28px auto 0 auto;
+          padding: 12px;
+          height: 120px;
+          border: 1px solid #9c9c9c;
+          border-radius: 5px;
+          background: #d3d3d3;
+          color: #222;
+          cursor: pointer;
+          font-weight: bold;
+      }
+      .btn:hover {
+          background: #c5c5c5;
+      }
+      .prev {}
+      .highlight {
+          color: #000;
+          font-weight: bold;
+          padding: 2px 4px;
+          border-radius: 3px;
+      }
+      .next {}
   </style>
 </head>
 <body>
