@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>EnYoutube</title>
+    <style>
+        *,*::before,*::after {
+            box-sizing: border-box;
+        }
+        body {
+            touch-action: manipulation;
+            font-family: sans-serif;
+            font-size: 16px;
+            text-align: center;
+            padding: 0 8px;
+            margin: 0;
+            background: #f9f9f9;
+            width:100%;
+        }
+        #globe-container{
+            width:100%;
+            margin: 0 auto;
+            max-width: 1200px;
+        }
+        #video-container {
+            width:100%;
+            aspect-ratio: 16 / 9;
+            margin: auto;
+        }
+        iframe {
+            width: 100%;
+            height:100%;
+            border: none;
+        }
+        #subtitle {
+            margin: 5px auto;
+            width: 100%;
+            height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            padding: 5px;
+            background: #b7d6ea;
+            border-radius: 5px;
+            line-height: 20px;
+            color: #111;
+        }
+        #info-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin: 5px auto;
+            height: 40px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            color: #222;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            margin: 10px auto 0 auto;
+            height: 60px;
+            line-height:60px;
+            border: 1px solid #9c9c9c;
+            border-radius: 5px;
+            background: #d3d3d3;
+            color: #222;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background: #c5c5c5;
+        }
+        .prev {}
+        .highlight {
+            color: #000;
+            font-weight: bold;
+        }
+        .next {}
+    </style>
+</head>
+<body>
+<div id="globe-container">
+    <div id="video-container">
+        <div id="player"></div>
+    </div>
+
+    <div id="subtitle"></div>
+    <div id="info-box">--/--</div>
+
+    <div>
+        <button class="btn" onclick="randomOnly()">Random</button>
+        <button class="btn" onclick="stop()">Stop</button>
+        <button class="btn" onclick="play()">Play</button>
+        <button class="btn" onclick="toggleSubtitle()">Show</button>
+    </div>
+</div>
+
+<script>
+    let stopTimer = null;
+
+    let data = [];
+    let currentSub = null;
+    let currentIndex = -1;
+    let subtitleVisible = false;
+
+    function encodeHTML(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    async function loadData() {
+        const response = await fetch("enBilibili/subs.json");
+        let raw = await response.json();
+
+        // 🔥 过滤掉空白字幕片段 + 缺少起止时间的片段
+        data = raw.map(video => {
+            return {
+                id: video.id,
+                events: video.events.map(ev => ({
+                    tStartMs: ev.from * 1000,
+                    dDurationMs: (ev.to - ev.from) * 1000,
+                    segs: [{ utf8: ev.content }]
+                })).filter(ev => {
+                    if (!ev || !ev.segs) return false;
+                    if (ev.tStartMs == null || ev.dDurationMs == null) return false; // 没有时间的剔除
+                    const text = ev.segs.map(s => (s && s.utf8 ? s.utf8.trim() : "")).join(" ");
+                    return text.length > 0;
+                })
+            };
+        }).filter(v => v.events.length > 0);
+
+        randomOnly();
+    }
+
+
+    function joinSegs(ev) {
+        if (!ev || !ev.segs) return "";
+        return ev.segs.map(s => (s && s.utf8 ? s.utf8.trim() : ""))
+            .filter(Boolean)
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function pickRandom() {
+        if (!data || data.length === 0) return null;
+        const video = data[Math.floor(Math.random() * data.length)];
+        if (!video || !video.events || video.events.length === 0) return null;
+
+        currentIndex = Math.floor(Math.random() * video.events.length);
+        const event = video.events[currentIndex];
+        if (!event || !event.segs || event.segs.length === 0) return pickRandom();
+
+        const prevEvent = currentIndex > 0 ? video.events[currentIndex - 1] : null;
+        const nextEvent = currentIndex < video.events.length - 1 ? video.events[currentIndex + 1] : null;
+        const nextNextEvent = currentIndex < video.events.length - 2 ? video.events[currentIndex + 2] : null;
+
+        return {
+            id: video.id,
+            s: (event.tStartMs || 0) / 1000,
+            e: (event.tStartMs + (event.dDurationMs || 0)) / 1000,
+            prevText: prevEvent ? joinSegs(prevEvent) : "",
+            currText: joinSegs(event),
+            nextText: nextEvent ? joinSegs(nextEvent) : "",
+            nextNextText: nextNextEvent ? joinSegs(nextNextEvent) : "",
+            idx: currentIndex + 1
+        };
+    }
+
+    function randomOnly() {
+        currentSub = pickRandom();
+        if (!currentSub) return;
+        subtitleVisible = false;
+        updateSubtitle();
+        updateInfo();
+    }
+
+    function play() {
+        // <iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115659744742264&bvid=BV1em2aBYE1T&cid=34491860989&p=1"
+        // scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+        if (!currentSub) return;
+        if (stopTimer) clearTimeout(stopTimer);
+
+        const playerContainer = document.getElementById("player");
+        // B站 iframe 通过 t 参数指定开始秒数，autoplay=1 自动播放
+        let embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&high_quality=1&danmaku=0`;
+
+        playerContainer.innerHTML = `<iframe src="${embedUrl}" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>`;
+
+        updateSubtitle();
+
+        // 计算当前片段持续时间（毫秒），到点后清空 iframe 达到停止/切片效果
+        let durationMs = (currentSub.e - currentSub.s) * 1000;
+        if (durationMs < 1000) durationMs = 3000; // 兜底
+
+        stopTimer = setTimeout(() => {
+            stop();
+        }, durationMs);
+    }
+
+    function stop() {
+        if (stopTimer) clearTimeout(stopTimer);
+        const playerContainer = document.getElementById("player");
+        playerContainer.innerHTML = ""; // 清空 iframe 即代表停止
+    }
+
+    function updateSubtitle() {
+        const el = document.getElementById("subtitle");
+        if (subtitleVisible && currentSub) {
+            let html = "";
+            if (currentSub.prevText) {
+                html += `<span class="prev">${encodeHTML(currentSub.prevText)}</span> `;
+            }
+            html += `<span class="highlight">${encodeHTML(currentSub.currText)}</span>`;
+            if (currentSub.nextText) {
+                html += ` <span class="next">${encodeHTML(currentSub.nextText)}</span>`;
+            }
+            if (currentSub.nextNextText) {
+                html += ` <span class="next-next">${encodeHTML(currentSub.nextNextText)}</span>`;
+            }
+            el.innerHTML = html;
+            el.scrollTop = 0;
+        } else {
+            el.innerHTML = "";
+        }
+    }
+
+    function updateInfo() {
+        const el = document.getElementById("info-box");
+        if (currentSub) el.textContent = `${currentSub.idx}/${currentSub.id}`;
+        else el.textContent = "--/--";
+    }
+
+    function toggleSubtitle() {
+        subtitleVisible = true;
+        updateSubtitle();
+    }
+
+    loadData();
+</script>
+</body>
+</html>
