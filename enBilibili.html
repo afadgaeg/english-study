@@ -194,7 +194,7 @@
 
         const playerContainer = document.getElementById("player");
         // B站 iframe 通过 t 参数指定开始秒数，autoplay=1 自动播放
-        let embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&high_quality=1&danmaku=0`;
+        let embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&danmaku=0`;
 
         playerContainer.innerHTML = `<iframe src="${embedUrl}" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>`;
 
