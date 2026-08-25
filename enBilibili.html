@@ -187,32 +187,42 @@
     }
 
     function play() {
-        // <iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115659744742264&bvid=BV1em2aBYE1T&cid=34491860989&p=1"
-        // scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
         if (!currentSub) return;
+
+        // 1. 清除旧定时器
         if (stopTimer) clearTimeout(stopTimer);
 
         const playerContainer = document.getElementById("player");
-        // B站 iframe 通过 t 参数指定开始秒数，autoplay=1 自动播放
+
+        // 480p 省流版 URL（无 high_quality）
         let embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&danmaku=0`;
 
-        playerContainer.innerHTML = `<iframe src="${embedUrl}" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>`;
+        // 2. 加载 iframe，并绑定 onload 事件
+        playerContainer.innerHTML = `<iframe src="${embedUrl}" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" onload="onIframeLoaded()"></iframe>`;
 
         updateSubtitle();
-
-        // 计算当前片段持续时间（毫秒），到点后清空 iframe 达到停止/切片效果
-        let durationMs = (currentSub.e - currentSub.s) * 1000;
-        if (durationMs < 1000) durationMs = 3000; // 兜底
-
-        stopTimer = setTimeout(() => {
-            stop();
-        }, durationMs);
     }
 
     function stop() {
         if (stopTimer) clearTimeout(stopTimer);
         const playerContainer = document.getElementById("player");
         playerContainer.innerHTML = ""; // 清空 iframe 即代表停止
+    }
+
+    // 3. 当 iframe 框架加载完后触发此函数
+    function onIframeLoaded() {
+        if (stopTimer) clearTimeout(stopTimer);
+
+        // 计算当前字幕片段自身的时长
+        let durationMs = (currentSub.e - currentSub.s) * 1000;
+
+        // 在 onload 之后，再额外延迟 3 秒（用来对齐 B 站内部的视频缓冲和起播）
+        const bufferAfterLoad = 3000;
+
+        // 启动停止定时器
+        stopTimer = setTimeout(() => {
+            stop();
+        }, durationMs + bufferAfterLoad);
     }
 
     function updateSubtitle() {
