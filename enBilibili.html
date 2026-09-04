@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>EnBilibili.2</title>
+    <title>EnBilibili.3</title>
     <style>
         *,*::before,*::after {
             box-sizing: border-box;
@@ -95,9 +95,8 @@
     <div id="info-box">--/--</div>
 
     <div>
-        <button class="btn" onclick="randomOnly()">Random</button>
-        <button class="btn" onclick="stop()">Stop</button>
-        <button class="btn" onclick="play()">Play</button>
+        <button class="btn" onclick="random()">Random</button>
+        <button class="btn" onclick="stop()">Reset</button>
         <button class="btn" onclick="toggleSubtitle()">Show</button>
     </div>
 </div>
@@ -108,7 +107,6 @@
     let data = [];
     let currentSub = null;
     let currentIndex = -1;
-    let subtitleVisible = false;
 
     function encodeHTML(str) {
         return String(str)
@@ -140,7 +138,7 @@
             };
         }).filter(v => v.events.length > 0);
 
-        randomOnly();
+        random();
     }
 
 
@@ -178,15 +176,16 @@
         };
     }
 
-    function randomOnly() {
+    function random() {
         currentSub = pickRandom();
         if (!currentSub) return;
-        subtitleVisible = false;
-        updateSubtitle();
+        iframeReset();
+
+        updateSubtitle(false);
         updateInfo();
     }
 
-    function play() {
+    function iframeReset(){
         if (!currentSub) return;
 
         // 1. 清除旧定时器
@@ -194,50 +193,31 @@
 
         const playerContainer = document.getElementById("player");
 
-            // 🔥 关键：使用 platform=web 和 iframe 参数强制桌面播放器
-    const embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&danmaku=0&high_quality=1&platform=web&player_type=html5&disable_webpage=1`;
+         // 🔥 关键：使用 platform=web 和 iframe 参数强制桌面播放器
+        const embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=0&danmaku=0&high_quality=1&platform=web&player_type=html5&disable_webpage=1`;
 
-    playerContainer.innerHTML = `
-        <iframe
-            src="${embedUrl}"
-            scrolling="no"
-            border="0"
-            frameborder="no"
-            framespacing="0"
-            allowfullscreen="true"
-            allow="autoplay; fullscreen; encrypted-media"
-            style="width:100%;height:100%;"
-            referrerpolicy="no-referrer"
-            loading="eager">
-        </iframe>
-    `;
+        playerContainer.innerHTML = `
+            <iframe
+                src="${embedUrl}"
+                scrolling="no"
+                border="0"
+                frameborder="no"
+                framespacing="0"
+                allow="encrypted-media"
+                style="width:100%;height:100%;"
+                referrerpolicy="no-referrer"
+                loading="eager">
+            </iframe>
+        `;
 
-        updateSubtitle();
     }
 
     function stop() {
-        if (stopTimer) clearTimeout(stopTimer);
-        const playerContainer = document.getElementById("player");
-        playerContainer.innerHTML = ""; // 清空 iframe 即代表停止
+        if (!currentSub) return;
+        iframeReset();
     }
 
-    // 3. 当 iframe 框架加载完后触发此函数
-    function onIframeLoaded() {
-        if (stopTimer) clearTimeout(stopTimer);
-
-        // 计算当前字幕片段自身的时长
-        let durationMs = (currentSub.e - currentSub.s) * 1000;
-
-        // 在 onload 之后，再额外延迟 3 秒（用来对齐 B 站内部的视频缓冲和起播）
-        const bufferAfterLoad = 3000;
-
-        // 启动停止定时器
-        // stopTimer = setTimeout(() => {
-            // stop();
-        // }, durationMs + bufferAfterLoad);
-    }
-
-    function updateSubtitle() {
+    function updateSubtitle(subtitleVisible) {
         const el = document.getElementById("subtitle");
         if (subtitleVisible && currentSub) {
             let html = "";
@@ -265,8 +245,7 @@
     }
 
     function toggleSubtitle() {
-        subtitleVisible = true;
-        updateSubtitle();
+        updateSubtitle(true);
     }
 
     loadData();
