@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>EnBilibili.1</title>
+    <title>EnBilibili.2</title>
     <style>
         *,*::before,*::after {
             box-sizing: border-box;
@@ -194,12 +194,23 @@
 
         const playerContainer = document.getElementById("player");
 
-        // 480p 省流版 URL（无 high_quality）
-        let embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&danmaku=0&high_quality=1&as_wide=1`;
+            // 🔥 关键：使用 platform=web 和 iframe 参数强制桌面播放器
+    const embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&danmaku=0&high_quality=1&platform=web&player_type=html5&disable_webpage=1`;
 
-        // 2. 加载 iframe，并绑定 onload 事件
-        playerContainer.innerHTML = `<iframe src="${embedUrl}" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" onload="onIframeLoaded()"
-        allow="autoplay; fullscreen; encrypted-media"></iframe>`;
+    playerContainer.innerHTML = `
+        <iframe
+            src="${embedUrl}"
+            scrolling="no"
+            border="0"
+            frameborder="no"
+            framespacing="0"
+            allowfullscreen="true"
+            allow="autoplay; fullscreen; encrypted-media"
+            style="width:100%;height:100%;"
+            referrerpolicy="no-referrer"
+            loading="eager">
+        </iframe>
+    `;
 
         updateSubtitle();
     }
