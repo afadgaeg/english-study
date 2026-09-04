@@ -195,12 +195,11 @@
         const playerContainer = document.getElementById("player");
 
         // 480p 省流版 URL（无 high_quality）
-        let embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&platform=web&autoplay=1&danmaku=0`;
+        let embedUrl = `https://player.bilibili.com/player.html?bvid=${currentSub.id}&t=${currentSub.s}&autoplay=1&danmaku=0&high_quality=1&as_wide=1`;
 
         // 2. 加载 iframe，并绑定 onload 事件
         playerContainer.innerHTML = `<iframe src="${embedUrl}" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" onload="onIframeLoaded()"
-        allow="autoplay; fullscreen; encrypted-media"
-        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+        allow="autoplay; fullscreen; encrypted-media"></iframe>`;
 
         updateSubtitle();
     }
