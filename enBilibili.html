@@ -77,7 +77,6 @@
         .btn:hover {
             background: #c5c5c5;
         }
-        .prev {}
         .highlight {
             color: #000;
             font-weight: bold;
@@ -102,11 +101,12 @@
 </div>
 
 <script>
-    let stopTimer = null;
 
     let data = [];
     let currentSub = null;
     let currentIndex = -1;
+    let preCnt = 1;
+    let nextCnt = 5;
 
     function encodeHTML(str) {
         return String(str)
@@ -155,23 +155,30 @@
         if (!data || data.length === 0) return null;
         const video = data[Math.floor(Math.random() * data.length)];
         if (!video || !video.events || video.events.length === 0) return null;
-
         currentIndex = Math.floor(Math.random() * video.events.length);
         const event = video.events[currentIndex];
         if (!event || !event.segs || event.segs.length === 0) return pickRandom();
 
-        const prevEvent = currentIndex > 0 ? video.events[currentIndex - 1] : null;
-        const nextEvent = currentIndex < video.events.length - 1 ? video.events[currentIndex + 1] : null;
-        const nextNextEvent = currentIndex < video.events.length - 2 ? video.events[currentIndex + 2] : null;
+        const events = [];
+        for(let i = preCnt; i >0 ; i--) {
+            let idx = currentIndex-i;
+            if(idx >= 0){
+                events.push(video.events[idx]);
+            }
+        }
+        events.push(event);
+        for(let i = 1; i <= nextCnt; i++) {
+            let idx = currentIndex+i;
+            if(idx < video.events.length){
+                events.push(video.events[idx]);
+            }
+        }
 
         return {
             id: video.id,
             s: (event.tStartMs || 0) / 1000,
             e: (event.tStartMs + (event.dDurationMs || 0)) / 1000,
-            prevText: prevEvent ? joinSegs(prevEvent) : "",
-            currText: joinSegs(event),
-            nextText: nextEvent ? joinSegs(nextEvent) : "",
-            nextNextText: nextNextEvent ? joinSegs(nextNextEvent) : "",
+            texts: events.map(evt=> joinSegs(evt)),
             idx: currentIndex + 1
         };
     }
@@ -187,9 +194,6 @@
 
     function iframeReset(){
         if (!currentSub) return;
-
-        // 1. 清除旧定时器
-        if (stopTimer) clearTimeout(stopTimer);
 
         const playerContainer = document.getElementById("player");
 
@@ -221,15 +225,13 @@
         const el = document.getElementById("subtitle");
         if (subtitleVisible && currentSub) {
             let html = "";
-            if (currentSub.prevText) {
-                html += `<span class="prev">${encodeHTML(currentSub.prevText)}</span> `;
-            }
-            html += `<span class="highlight">${encodeHTML(currentSub.currText)}</span>`;
-            if (currentSub.nextText) {
-                html += ` <span class="next">${encodeHTML(currentSub.nextText)}</span>`;
-            }
-            if (currentSub.nextNextText) {
-                html += ` <span class="next-next">${encodeHTML(currentSub.nextNextText)}</span>`;
+            for(let i =0 ;i<currentSub.texts.length;i++){
+                const text = currentSub.texts[i];
+                if(i == preCnt){
+                    html += `<span class="highlight">${encodeHTML(text)}</span>`;
+                }else{
+                    html += `<span>${encodeHTML(text)}</span> `;
+                }
             }
             el.innerHTML = html;
             el.scrollTop = 0;
