@@ -228,9 +228,9 @@
             for(let i =0 ;i<currentSub.texts.length;i++){
                 const text = currentSub.texts[i];
                 if(i == preCnt){
-                    html += `<span class="highlight">${encodeHTML(text)}</span>`;
+                    html += `<span class="highlight">${encodeHTML(text)} </span>`;
                 }else{
-                    html += `<span>${encodeHTML(text)}</span> `;
+                    html += `<span>${encodeHTML(text)} </span> `;
                 }
             }
             el.innerHTML = html;
